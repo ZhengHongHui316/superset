@@ -134,6 +134,7 @@ export interface SliceHeaderControlsProps {
   exportXLSX?: (sliceId: number) => void;
   exportFullXLSX?: (sliceId: number) => void;
   handleToggleFullSize: () => void;
+  exportPivotExcel?: (tableSelector: string, sliceName: string) => void;
 
   addDangerToast: (message: string) => void;
   addSuccessToast: (message: string) => void;
@@ -237,6 +238,10 @@ const SliceHeaderControls = (
         // eslint-disable-next-line no-unused-expressions
         props.exportXLSX?.(props.slice.slice_id);
         break;
+      case MenuKeys.ExportPivotXlsx: {
+        props.exportPivotExcel?.('.pvtTable', props.slice.slice_name);
+        break;
+      }
       case MenuKeys.DownloadAsImage: {
         // menu closes with a delay, we need to hide it manually,
         // so that we don't capture it on the screenshot
@@ -486,6 +491,15 @@ const SliceHeaderControls = (
           >
             {t('Export to Excel')}
           </Menu.Item>
+
+          {isPivotTable && (
+            <Menu.Item
+              key={MenuKeys.ExportPivotXlsx}
+              icon={<Icons.FileOutlined css={dropdownIconsStyles} />}
+            >
+              {t('Export to Pivoted Excel')}
+            </Menu.Item>
+          )}
 
           {isFeatureEnabled(FeatureFlag.AllowFullCsvExport) &&
             props.supersetCanCSV &&
