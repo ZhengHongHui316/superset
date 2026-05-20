@@ -40,6 +40,7 @@ import { enforceSharedLabelsColorsArray } from 'src/utils/colorScheme';
 import exportPivotExcel from 'src/utils/downloadAsPivotExcel';
 
 import SliceHeader from '../SliceHeader';
+import ChartFilters from './ChartFilters';
 import MissingChart from '../MissingChart';
 import {
   addDangerToast,
@@ -474,6 +475,8 @@ const Chart = props => {
         height={getHeaderHeight()}
         exportPivotExcel={exportPivotExcel}
       />
+
+      <ChartFilters chartId={props.id} />
 
       {/*
           This usage of dangerouslySetInnerHTML is safe since it is being used to render
