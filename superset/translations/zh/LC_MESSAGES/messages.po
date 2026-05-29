@@ -6235,6 +6235,12 @@ msgstr "上一周"
 msgid "Last year"
 msgstr "上一年"
 
+msgid "This month"
+msgstr "本月"
+
+msgid "This year"
+msgstr "本年"
+
 msgid "Latitude"
 msgstr "纬度"
 
@@ -11681,7 +11687,7 @@ msgstr "该表已经有了数据集"
 msgid ""
 "This table already has a dataset associated with it. You can only "
 "associate one dataset with a table.\n"
-msgstr "此表已经关联了一个数据集。一个表只能关联一个数据集。"
+msgstr "此表已经关联了一个数据集。一个表只能关联一个数据集。\n"
 
 msgid "This value should be greater than the left target value"
 msgstr "这个值应该大于左边的目标值"

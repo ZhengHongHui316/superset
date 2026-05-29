@@ -146,11 +146,38 @@ const HorizontalFormItem = styled(StyledFormItem)`
   }
 `;
 
+const HorizontalFormItemWide = styled(StyledFormItem)`
+  && {
+    margin-bottom: 0;
+    align-items: center;
+  }
+
+  .ant-form-item-label {
+    overflow: visible;
+    padding-bottom: 0;
+    margin-right: ${({ theme }) => theme.gridUnit * 2}px;
+    label.ant-form-item-required:not(.ant-form-item-required-mark-optional) {
+      &::after {
+        display: none;
+      }
+    }
+
+    & > label::after {
+      display: none;
+    }
+  }
+
+  .ant-form-item-control {
+    width: ${({ theme }) => theme.gridUnit * 65}px;
+  }
+`;
+
 const HorizontalOverflowFormItem = VerticalFormItem;
 
 const useFilterControlDisplay = (
   orientation: FilterBarOrientation,
   overflow: boolean,
+  filterType?: string,
 ) =>
   useMemo(() => {
     if (orientation === FilterBarOrientation.Horizontal) {
@@ -162,9 +189,12 @@ const useFilterControlDisplay = (
           FilterControlTitle: HorizontalOverflowFilterControlTitle,
         };
       }
+      const isDateRangeType =
+        filterType === 'filter_monthrange' ||
+        filterType === 'filter_timerange';
       return {
         FilterControlContainer: HorizontalFilterControlContainer,
-        FormItem: HorizontalFormItem,
+        FormItem: isDateRangeType ? HorizontalFormItemWide : HorizontalFormItem,
         FilterControlTitleBox: HorizontalFilterControlTitleBox,
         FilterControlTitle: HorizontalFilterControlTitle,
       };
@@ -175,7 +205,7 @@ const useFilterControlDisplay = (
       FilterControlTitleBox: VerticalFilterControlTitleBox,
       FilterControlTitle: VerticalFilterControlTitle,
     };
-  }, [orientation, overflow]);
+  }, [orientation, overflow, filterType]);
 
 const ToolTipContainer = styled.div`
   font-size: ${({ theme }) => theme.typography.sizes.m}px;
@@ -247,7 +277,7 @@ const FilterControl = ({
     FormItem,
     FilterControlTitleBox,
     FilterControlTitle,
-  } = useFilterControlDisplay(orientation, overflow);
+  } = useFilterControlDisplay(orientation, overflow, filter.filterType);
 
   const label = useMemo(
     () => (

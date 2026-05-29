@@ -17,9 +17,36 @@
  * under the License.
  */
 import { ControlPanelConfig } from '@superset-ui/chart-controls';
+import { t } from '@superset-ui/core';
+import { TIME_RANGE_PRESETS } from './types';
 
 const config: ControlPanelConfig = {
-  controlPanelSections: [],
+  controlPanelSections: [
+    {
+      label: t('UI Configuration'),
+      expanded: true,
+      controlSetRows: [
+        [
+          {
+            name: 'defaultTimeRange',
+            config: {
+              type: 'SelectControl',
+              renderTrigger: true,
+              label: t('Default time range'),
+              default: null,
+              choices: [
+                [null, t('No default')],
+                ...TIME_RANGE_PRESETS.map(p => [p.value, t(p.label)]),
+              ],
+              description: t(
+                'Select a default time range that will be applied when the dashboard loads',
+              ),
+            },
+          },
+        ],
+      ],
+    },
+  ],
 };
 
 export default config;

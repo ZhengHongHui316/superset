@@ -25,8 +25,16 @@ import {
 } from '@superset-ui/core';
 import { PluginFilterHooks, PluginFilterStylesProps } from '../types';
 
+export const TIME_RANGE_PRESETS = [
+  { value: 'This month', label: 'This month' },
+  { value: 'This year', label: 'This year' },
+  { value: 'Last month', label: 'Last month' },
+  { value: 'Last quarter', label: 'Last quarter' },
+  { value: 'Last year', label: 'Last year' },
+];
+
 interface PluginFilterTimeRangeCustomizeProps {
-  defaultValue?: string | null;
+  defaultTimeRange?: string | null;
 }
 
 export type PluginFilterTimeRangeQueryFormData = QueryFormData &
@@ -42,5 +50,5 @@ export type PluginFilterTimeRangeProps = PluginFilterStylesProps & {
 } & PluginFilterHooks;
 
 export const DEFAULT_FORM_DATA: PluginFilterTimeRangeCustomizeProps = {
-  defaultValue: null,
+  defaultTimeRange: null,
 };

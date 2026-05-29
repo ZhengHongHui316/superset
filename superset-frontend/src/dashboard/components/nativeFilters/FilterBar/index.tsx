@@ -176,7 +176,9 @@ const FilterBar: FC<FiltersBarProps> = ({
           dataMask.filterState?.value !== undefined &&
           dataMaskSelectedRef.current[filter.id]?.filterState?.value ===
             undefined &&
-          filter.requiredFirst
+          (filter.requiredFirst ||
+            filter.filterType === 'filter_timerange' ||
+            filter.filterType === 'filter_monthrange')
         ) {
           dispatch(updateDataMask(filter.id, dataMask));
         }

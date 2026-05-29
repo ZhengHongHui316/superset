@@ -16,17 +16,88 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { styled, NO_TIME_RANGE } from '@superset-ui/core';
-import { useCallback, useMemo } from 'react';
+import { css, styled, NO_TIME_RANGE, t } from '@superset-ui/core';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import dayjs from 'dayjs';
 import { RangePicker } from 'src/components/DatePicker';
-import { PluginFilterMonthRangeProps } from './types';
+import { AntdThemeProvider } from 'src/components/AntdThemeProvider';
+import { useLocale } from 'src/hooks/useLocale';
+import { PluginFilterMonthRangeProps, MONTH_RANGE_PRESETS } from './types';
 import { FilterPluginStyle } from '../common';
 
-const Container = styled(FilterPluginStyle)`
+const PRESET_LABEL_MAP: Record<string, string> = Object.fromEntries(
+  MONTH_RANGE_PRESETS.map(p => [p.value, p.label]),
+);
+
+type PresetFactory = () => [dayjs.Dayjs, dayjs.Dayjs];
+
+export const MONTH_PRESETS: Record<string, PresetFactory> = {
+  'This month': () => {
+    const now = dayjs();
+    return [now.startOf('month'), now.endOf('month')];
+  },
+  'This year': () => {
+    const now = dayjs();
+    return [now.startOf('year'), now.endOf('year')];
+  },
+  'Last month': () => {
+    const prev = dayjs().subtract(1, 'month');
+    return [prev.startOf('month'), prev.endOf('month')];
+  },
+  'Last quarter': () => {
+    const now = dayjs();
+    const month = now.month(); // 0-indexed
+    const currentQuarter = Math.floor(month / 3);
+    const prevQuarterStartMonth =
+      currentQuarter === 0 ? 9 : (currentQuarter - 1) * 3;
+    const year = currentQuarter === 0 ? now.year() - 1 : now.year();
+    const start = dayjs()
+      .year(year)
+      .month(prevQuarterStartMonth)
+      .startOf('month');
+    const end = dayjs()
+      .year(year)
+      .month(prevQuarterStartMonth + 2)
+      .endOf('month');
+    return [start, end];
+  },
+  'Last year': () => {
+    const prev = dayjs().subtract(1, 'year');
+    return [prev.startOf('year'), prev.endOf('year')];
+  },
+};
+
+export function resolveMonthPreset(
+  preset: string,
+): [dayjs.Dayjs, dayjs.Dayjs] | null {
+  const factory = MONTH_PRESETS[preset];
+  return factory ? factory() : null;
+}
+
+function applyMonthPreset(
+  preset: string,
+  setDataMask: PluginFilterMonthRangeProps['setDataMask'],
+) {
+  const resolved = resolveMonthPreset(preset);
+  if (!resolved) return;
+  const timeRange = `${resolved[0].format('YYYY-MM-DD')} : ${resolved[1].format('YYYY-MM-DD')}`;
+  setDataMask({
+    extraFormData: {
+      filters: [{ col: 'time_val', op: '==', val: timeRange }],
+    },
+    filterState: { value: preset, label: t(PRESET_LABEL_MAP[preset] || preset) },
+  });
+}
+
+const MonthRangeStyles = styled(FilterPluginStyle)`
   display: flex;
   align-items: center;
-  min-width: 160px;
+`;
+
+const ControlContainer = styled.div`
+  display: flex;
+  height: 100%;
+  width: 100%;
 `;
 
 export default function MonthRangeFilterPlugin(
@@ -45,6 +116,13 @@ export default function MonthRangeFilterPlugin(
     formData,
   } = props;
 
+  const locale = useLocale();
+
+  const { defaultMonthRange } = formData;
+
+  const setDataMaskRef = useRef(setDataMask);
+  setDataMaskRef.current = setDataMask;
+
   const handleMonthChange = useCallback(
     (dates: any) => {
       if (!dates || dates.length !== 2) {
@@ -57,40 +135,68 @@ export default function MonthRangeFilterPlugin(
       const timeRange = `${dates[0].startOf('month').format('YYYY-MM-DD')} : ${dates[1].endOf('month').format('YYYY-MM-DD')}`;
       const value = `${dates[0].format('YYYY-MM')} : ${dates[1].format('YYYY-MM')}`;
       setDataMask({
-        extraFormData: { time_range: timeRange },
-        filterState: { value },
+        extraFormData: {
+          filters: [{ col: 'time_val', op: '==', val: timeRange }],
+        },
+        filterState: { value, label: value },
       });
     },
     [setDataMask],
   );
 
+  useEffect(() => {
+    const { value } = filterState;
+    if (value && value !== NO_TIME_RANGE && MONTH_PRESETS[value]) {
+      applyMonthPreset(value, setDataMaskRef.current);
+    } else if (
+      (!value || value === NO_TIME_RANGE) &&
+      defaultMonthRange &&
+      MONTH_PRESETS[defaultMonthRange]
+    ) {
+      applyMonthPreset(defaultMonthRange, setDataMaskRef.current);
+    }
+  }, [filterState?.value, defaultMonthRange]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const monthRange = useMemo(() => {
     const { value } = filterState;
     if (!value || value === NO_TIME_RANGE) return null;
+
+    // If value is a preset name, resolve it for display
+    if (MONTH_PRESETS[value]) {
+      const resolved = resolveMonthPreset(value);
+      if (resolved) {
+        return [resolved[0], resolved[1]];
+      }
+      return null;
+    }
+
+    // Otherwise value is a month range string
     const parts = value.split(' : ');
     if (parts.length !== 2) return null;
     return [dayjs(parts[0]), dayjs(parts[1])];
   }, [filterState]);
 
   return formData?.inView ? (
-    <Container width={width} height={height}>
-      <div
-        ref={inputRef}
-        style={{ width: '100%' }}
-        onFocus={setFocusedFilter}
-        onBlur={unsetFocusedFilter}
-        onMouseEnter={setHoveredFilter}
-        onMouseLeave={unsetHoveredFilter}
-      >
-        <RangePicker
-          picker="month"
-          value={monthRange as any}
-          onChange={handleMonthChange}
-          size="small"
-          format="YYYY-MM"
-          style={{ width: '100%', minWidth: 260 }}
-        />
-      </div>
-    </Container>
+    <AntdThemeProvider locale={locale ?? undefined}>
+      <MonthRangeStyles width={width} height={height}>
+        <ControlContainer
+          ref={inputRef}
+          onFocus={setFocusedFilter}
+          onBlur={unsetFocusedFilter}
+          onMouseEnter={setHoveredFilter}
+          onMouseLeave={unsetHoveredFilter}
+        >
+          <RangePicker
+            picker="month"
+            value={monthRange as any}
+            onChange={handleMonthChange}
+            format="YYYY-MM"
+            css={css`
+              width: 100%;
+            `}
+          />
+        </ControlContainer>
+      </MonthRangeStyles>
+    </AntdThemeProvider>
   ) : null;
 }

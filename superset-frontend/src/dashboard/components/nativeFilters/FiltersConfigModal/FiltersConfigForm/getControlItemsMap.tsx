@@ -30,6 +30,7 @@ import {
 } from '@superset-ui/core';
 import { Tooltip } from 'src/components/Tooltip';
 import { FormItem } from 'src/components/Form';
+import { Select } from 'src/components';
 import {
   doesColumnMatchFilterType,
   getControlItems,
@@ -161,43 +162,40 @@ export default function getControlItemsMap({
       const initialValue =
         filterToEdit?.controlValues?.[controlItem.name] ??
         controlItem?.config?.default;
-      const element = (
-        <>
-          <CleanFormItem
-            name={['filters', filterId, 'requiredFirst', controlItem.name]}
-            hidden
-            initialValue={
-              controlItem?.config?.requiredFirst && filterToEdit?.requiredFirst
-            }
-          />
-          <Tooltip
-            key={controlItem.name}
-            placement="left"
-            title={
-              controlItem.config.affectsDataMask &&
-              disabled &&
-              t('Populate "Default value" to enable this control')
-            }
-          >
-            <StyledRowFormItem
+
+      let element: ReactNode;
+
+      if (controlItem.config.type === 'SelectControl') {
+        const choices = controlItem.config.choices || [];
+        const options = choices.map((c: [any, string]) => ({
+          value: c[0],
+          label: c[1],
+        }));
+        element = (
+          <>
+            <CleanFormItem
+              name={['filters', filterId, 'requiredFirst', controlItem.name]}
+              hidden
+              initialValue={
+                controlItem?.config?.requiredFirst &&
+                filterToEdit?.requiredFirst
+              }
+            />
+            <StyledFormItem
               expanded={expanded}
-              key={controlItem.name}
               name={['filters', filterId, 'controlValues', controlItem.name]}
               initialValue={initialValue}
-              valuePropName="checked"
-              colon={false}
+              label={
+                <StyledLabel>
+                  {controlItem.config.label || controlItem.name}
+                </StyledLabel>
+              }
+              data-test={`field-input-${controlItem.name}`}
             >
-              <AntdCheckbox
-                disabled={controlItem.config.affectsDataMask && disabled}
-                onChange={({ target: { checked } }) => {
-                  if (controlItem.config.requiredFirst) {
-                    setNativeFilterFieldValues(form, filterId, {
-                      requiredFirst: {
-                        ...formFilter?.requiredFirst,
-                        [controlItem.name]: checked,
-                      },
-                    });
-                  }
+              <Select
+                allowClear
+                options={options}
+                onChange={() => {
                   if (controlItem.config.resetConfig) {
                     setNativeFilterFieldValues(form, filterId, {
                       defaultDataMask: null,
@@ -206,20 +204,72 @@ export default function getControlItemsMap({
                   formChanged();
                   forceUpdate();
                 }}
+              />
+            </StyledFormItem>
+          </>
+        );
+      } else {
+        element = (
+          <>
+            <CleanFormItem
+              name={['filters', filterId, 'requiredFirst', controlItem.name]}
+              hidden
+              initialValue={
+                controlItem?.config?.requiredFirst &&
+                filterToEdit?.requiredFirst
+              }
+            />
+            <Tooltip
+              key={controlItem.name}
+              placement="left"
+              title={
+                controlItem.config.affectsDataMask &&
+                disabled &&
+                t('Populate "Default value" to enable this control')
+              }
+            >
+              <StyledRowFormItem
+                expanded={expanded}
+                key={controlItem.name}
+                name={['filters', filterId, 'controlValues', controlItem.name]}
+                initialValue={initialValue}
+                valuePropName="checked"
+                colon={false}
               >
-                {controlItem.config.label}&nbsp;
-                {controlItem.config.description && (
-                  <InfoTooltipWithTrigger
-                    placement="top"
-                    label={controlItem.config.name}
-                    tooltip={controlItem.config.description}
-                  />
-                )}
-              </AntdCheckbox>
-            </StyledRowFormItem>
-          </Tooltip>
-        </>
-      );
+                <AntdCheckbox
+                  disabled={controlItem.config.affectsDataMask && disabled}
+                  onChange={({ target: { checked } }) => {
+                    if (controlItem.config.requiredFirst) {
+                      setNativeFilterFieldValues(form, filterId, {
+                        requiredFirst: {
+                          ...formFilter?.requiredFirst,
+                          [controlItem.name]: checked,
+                        },
+                      });
+                    }
+                    if (controlItem.config.resetConfig) {
+                      setNativeFilterFieldValues(form, filterId, {
+                        defaultDataMask: null,
+                      });
+                    }
+                    formChanged();
+                    forceUpdate();
+                  }}
+                >
+                  {controlItem.config.label}&nbsp;
+                  {controlItem.config.description && (
+                    <InfoTooltipWithTrigger
+                      placement="top"
+                      label={controlItem.config.name}
+                      tooltip={controlItem.config.description}
+                    />
+                  )}
+                </AntdCheckbox>
+              </StyledRowFormItem>
+            </Tooltip>
+          </>
+        );
+      }
       mapControlItems[controlItem.name] = { element, checked: initialValue };
     });
   return {

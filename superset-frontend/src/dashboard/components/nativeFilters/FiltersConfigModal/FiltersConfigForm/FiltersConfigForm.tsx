@@ -75,6 +75,7 @@ import {
   DatasourcesState,
   RootState,
 } from 'src/dashboard/types';
+import { FilterPlugins } from 'src/constants';
 import DateFilterControl from 'src/explore/components/controls/DateFilterControl';
 import AdhocFilterControl from 'src/explore/components/controls/FilterControl/AdhocFilterControl';
 import { waitForAsyncData } from 'src/middleware/asyncEvent';
@@ -1218,122 +1219,125 @@ const FiltersConfigForm = (
             >
               <TextArea onChange={debouncedFormChanged} />
             </StyledFormItem>
-            <CleanFormItem
-              name={['filters', filterId, 'defaultValueQueriesData']}
-              hidden
-              initialValue={null}
-            />
-            <CleanFormItem name={['filters', filterId, 'defaultValue']}>
-              <CollapsibleControl
-                checked={hasDefaultValue}
-                disabled={isRequired || defaultToFirstItem}
-                initialValue={hasDefaultValue}
-                title={t('Filter has default value')}
-                tooltip={defaultValueTooltip}
-                onChange={value => {
-                  setHasDefaultValue(value);
-                  if (!value) {
-                    setNativeFilterFieldValues(form, filterId, {
-                      defaultDataMask: null,
-                    });
-                  }
-                  formChanged();
-                }}
-              >
-                {!isRemoved && (
-                  <StyledRowSubFormItem
-                    expanded={expanded}
-                    name={['filters', filterId, 'defaultDataMask']}
-                    initialValue={initialDefaultValue}
-                    data-test="default-input"
-                    label={<StyledLabel>{t('Default Value')}</StyledLabel>}
-                    required={hasDefaultValue}
-                    rules={[
-                      {
-                        validator: () => {
-                          if (formFilter?.defaultDataMask?.filterState?.value) {
-                            // requires managing the error as the DefaultValue
-                            // component does not use an Antdesign compatible input
-                            const formValidationFields = form.getFieldsError();
-                            setErroredFilters(prevErroredFilters => {
-                              if (
-                                prevErroredFilters.length &&
-                                !formValidationFields.find(
-                                  f => f.errors.length > 0,
-                                )
-                              ) {
-                                return [];
-                              }
-                              return prevErroredFilters;
-                            });
-                            return Promise.resolve();
-                          }
-                          setErroredFilters(prevErroredFilters => {
-                            if (prevErroredFilters.includes(filterId)) {
-                              return prevErroredFilters;
-                            }
-                            return [...prevErroredFilters, filterId];
+            {formFilter?.filterType !== FilterPlugins.TimeRange &&
+              formFilter?.filterType !== FilterPlugins.MonthRange && (
+                <>
+                  <CleanFormItem
+                    name={['filters', filterId, 'defaultValueQueriesData']}
+                    hidden
+                    initialValue={null}
+                  />
+                  <CleanFormItem name={['filters', filterId, 'defaultValue']}>
+                    <CollapsibleControl
+                      checked={hasDefaultValue}
+                      disabled={isRequired || defaultToFirstItem}
+                      initialValue={hasDefaultValue}
+                      title={t('Filter has default value')}
+                      tooltip={defaultValueTooltip}
+                      onChange={value => {
+                        setHasDefaultValue(value);
+                        if (!value) {
+                          setNativeFilterFieldValues(form, filterId, {
+                            defaultDataMask: null,
                           });
-                          return Promise.reject(
-                            new Error(t('Default value is required')),
-                          );
-                        },
-                      },
-                    ]}
-                  >
-                    {error || showDefaultValue ? (
-                      <DefaultValueContainer>
-                        {error ? (
-                          <ErrorMessageWithStackTrace
-                            error={error.errors?.[0]}
-                            fallback={
-                              <BasicErrorAlert
-                                title={t('Cannot load filter')}
-                                body={error.error}
-                                level="error"
-                              />
-                            }
-                          />
-                        ) : (
-                          <DefaultValue
-                            setDataMask={dataMask => {
-                              if (
-                                !isEqual(
-                                  initialDefaultValue?.filterState?.value,
-                                  dataMask?.filterState?.value,
-                                )
-                              ) {
-                                formChanged();
-                              }
-                              setNativeFilterFieldValues(form, filterId, {
-                                defaultDataMask: dataMask,
-                              });
-                              form.validateFields([
-                                ['filters', filterId, 'defaultDataMask'],
-                              ]);
-                              forceUpdate();
-                            }}
-                            hasDefaultValue={hasDefaultValue}
-                            filterId={filterId}
-                            hasDataset={hasDataset}
-                            form={form}
-                            formData={newFormData}
-                            enableNoResults={enableNoResults}
-                          />
-                        )}
-                        {hasDataset && datasetId && (
-                          <Tooltip title={t('Refresh the default values')}>
-                            <RefreshIcon onClick={() => refreshHandler(true)} />
-                          </Tooltip>
-                        )}
-                      </DefaultValueContainer>
-                    ) : (
-                      t('Fill all required fields to enable "Default Value"')
-                    )}
-                  </StyledRowSubFormItem>
-                )}
-              </CollapsibleControl>
-            </CleanFormItem>
+                        }
+                        formChanged();
+                      }}
+                    >
+                      {!isRemoved && (
+                        <StyledRowSubFormItem
+                          expanded={expanded}
+                          name={['filters', filterId, 'defaultDataMask']}
+                          initialValue={initialDefaultValue}
+                          data-test="default-input"
+                          label={<StyledLabel>{t('Default Value')}</StyledLabel>}
+                          required={hasDefaultValue}
+                          rules={[
+                            {
+                              validator: () => {
+                                if (formFilter?.defaultDataMask?.filterState?.value) {
+                                  const formValidationFields = form.getFieldsError();
+                                  setErroredFilters(prevErroredFilters => {
+                                    if (
+                                      prevErroredFilters.length &&
+                                      !formValidationFields.find(
+                                        f => f.errors.length > 0,
+                                      )
+                                    ) {
+                                      return [];
+                                    }
+                                    return prevErroredFilters;
+                                  });
+                                  return Promise.resolve();
+                                }
+                                setErroredFilters(prevErroredFilters => {
+                                  if (prevErroredFilters.includes(filterId)) {
+                                    return prevErroredFilters;
+                                  }
+                                  return [...prevErroredFilters, filterId];
+                                });
+                                return Promise.reject(
+                                  new Error(t('Default value is required')),
+                                );
+                              },
+                            },
+                          ]}
+                        >
+                          {error || showDefaultValue ? (
+                            <DefaultValueContainer>
+                              {error ? (
+                                <ErrorMessageWithStackTrace
+                                  error={error.errors?.[0]}
+                                  fallback={
+                                    <BasicErrorAlert
+                                      title={t('Cannot load filter')}
+                                      body={error.error}
+                                      level="error"
+                                    />
+                                  }
+                                />
+                              ) : (
+                                <DefaultValue
+                                  setDataMask={dataMask => {
+                                    if (
+                                      !isEqual(
+                                        initialDefaultValue?.filterState?.value,
+                                        dataMask?.filterState?.value,
+                                      )
+                                    ) {
+                                      formChanged();
+                                    }
+                                    setNativeFilterFieldValues(form, filterId, {
+                                      defaultDataMask: dataMask,
+                                    });
+                                    form.validateFields([
+                                      ['filters', filterId, 'defaultDataMask'],
+                                    ]);
+                                    forceUpdate();
+                                  }}
+                                  hasDefaultValue={hasDefaultValue}
+                                  filterId={filterId}
+                                  hasDataset={hasDataset}
+                                  form={form}
+                                  formData={newFormData}
+                                  enableNoResults={enableNoResults}
+                                />
+                              )}
+                              {hasDataset && datasetId && (
+                                <Tooltip title={t('Refresh the default values')}>
+                                  <RefreshIcon onClick={() => refreshHandler(true)} />
+                                </Tooltip>
+                              )}
+                            </DefaultValueContainer>
+                          ) : (
+                            t('Fill all required fields to enable "Default Value"')
+                          )}
+                        </StyledRowSubFormItem>
+                      )}
+                    </CollapsibleControl>
+                  </CleanFormItem>
+                </>
+              )}
             {Object.keys(controlItems)
               .sort(
                 (a, b) =>
