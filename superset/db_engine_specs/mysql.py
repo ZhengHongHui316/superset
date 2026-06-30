@@ -36,6 +36,7 @@ from sqlalchemy.dialects.mysql import (
     TINYINT,
     TINYTEXT,
 )
+from sqlalchemy.types import String
 from sqlalchemy.engine.url import URL
 
 from superset.constants import TimeGrain
@@ -110,6 +111,11 @@ class MySQLEngineSpec(BasicParametersMixin, BaseEngineSpec):
             re.compile(r"^bit", re.IGNORECASE),
             BIT(),
             GenericDataType.NUMERIC,
+        ),
+        (
+            re.compile(r"^VAR_STRING", re.IGNORECASE),
+            String(),
+            GenericDataType.STRING,
         ),
         (
             re.compile(r"^tinytext", re.IGNORECASE),
