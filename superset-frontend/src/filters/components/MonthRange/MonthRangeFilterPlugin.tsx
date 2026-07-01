@@ -126,10 +126,6 @@ export default function MonthRangeFilterPlugin(
   const handleMonthChange = useCallback(
     (dates: any) => {
       if (!dates || dates.length !== 2) {
-        setDataMask({
-          extraFormData: {},
-          filterState: { value: undefined },
-        });
         return;
       }
       const timeRange = `${dates[0].startOf('month').format('YYYY-MM-DD')} : ${dates[1].endOf('month').format('YYYY-MM-DD')}`;
@@ -185,12 +181,16 @@ export default function MonthRangeFilterPlugin(
           onBlur={unsetFocusedFilter}
           onMouseEnter={setHoveredFilter}
           onMouseLeave={unsetHoveredFilter}
+          onMouseDown={(e) => e.preventDefault()}
         >
           <RangePicker
             picker="month"
             value={monthRange as any}
             onChange={handleMonthChange}
             format="YYYY-MM"
+            getPopupContainer={(triggerNode) =>
+              triggerNode?.parentElement || document.body
+            }
             css={css`
               width: 100%;
             `}

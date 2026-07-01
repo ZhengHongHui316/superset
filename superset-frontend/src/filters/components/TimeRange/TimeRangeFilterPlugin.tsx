@@ -126,10 +126,6 @@ export default function TimeRangeFilterPlugin(
   const handleTimeRangeChange = useCallback(
     (dates: any) => {
       if (!dates || dates.length !== 2) {
-        setDataMask({
-          extraFormData: {},
-          filterState: { value: undefined },
-        });
         return;
       }
       const timeRange = `${dates[0].format('YYYY-MM-DD')} : ${dates[1].format('YYYY-MM-DD')}`;
@@ -184,11 +180,15 @@ export default function TimeRangeFilterPlugin(
           onBlur={unsetFocusedFilter}
           onMouseEnter={setHoveredFilter}
           onMouseLeave={unsetHoveredFilter}
+          onMouseDown={(e) => e.preventDefault()}
         >
           <RangePicker
             value={dateRange as any}
             onChange={handleTimeRangeChange}
             format="YYYY-MM-DD"
+            getPopupContainer={(triggerNode) =>
+              triggerNode?.parentElement || document.body
+            }
             css={css`
               width: 100%;
             `}
