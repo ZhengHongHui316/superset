@@ -149,6 +149,7 @@ export default function transformProps(
     legendOrientation,
     legendType,
     metric = '',
+    secondaryMetric,
     numberFormat,
     currencyFormat,
     dateFormat,
@@ -166,6 +167,9 @@ export default function transformProps(
   };
   const refs: Refs = {};
   const metricLabel = getMetricLabel(metric);
+  const secondaryMetricLabel = secondaryMetric
+    ? getMetricLabel(secondaryMetric)
+    : '';
   const groupbyLabels = groupby.map(getColumnLabel);
   const minShowLabelAngle = (showLabelsThreshold || 0) * 3.6;
 
@@ -221,6 +225,7 @@ export default function transformProps(
     return {
       value,
       name,
+      ...(secondaryMetricLabel && { secondaryValue: datum[secondaryMetricLabel] }),
       itemStyle: {
         color: colorFn(name, sliceId),
         opacity: isFiltered
@@ -249,6 +254,8 @@ export default function transformProps(
       name: string;
       value: string;
       percent: string;
+      secondaryValue?: string;
+      secondaryMetric?: string;
     },
     rawParams: CallbackDataParams,
   ) => {
@@ -262,6 +269,8 @@ export default function transformProps(
       '{name}': formattedParams.name,
       '{value}': formattedParams.value,
       '{percent}': formattedParams.percent,
+      '{secondary_value}': formattedParams.secondaryValue || '',
+      '{secondary_metric}': formattedParams.secondaryMetric || '',
       '{a}': rawParams.seriesName || '',
       '{b}': rawParams.name,
       '{c}': `${rawParams.value}`,
@@ -299,12 +308,36 @@ export default function transformProps(
         if (!labelTemplate) {
           return '';
         }
+        const secondaryMetricLabel = secondaryMetric
+          ? getMetricLabel(secondaryMetric)
+          : '';
+        const secondaryValueFormatter = secondaryMetric
+          ? getValueFormatter(
+              secondaryMetric,
+              currencyFormats,
+              columnFormats,
+              numberFormat,
+              currencyFormat,
+            )
+          : null;
+        const rawSecondaryValue =
+          (params.data as Record<string, unknown>)?.secondaryValue;
+        const formattedSecondaryValue =
+          secondaryValueFormatter && rawSecondaryValue != null
+            ? secondaryValueFormatter(
+                typeof rawSecondaryValue === 'number'
+                  ? rawSecondaryValue
+                  : convertInteger(rawSecondaryValue as string | number),
+              )
+            : '';
         return formatTemplate(
           labelTemplate,
           {
             name,
             value: formattedValue,
             percent: formattedPercent,
+            secondaryValue: formattedSecondaryValue,
+            secondaryMetric: secondaryMetricLabel,
           },
           params,
         );
@@ -372,10 +405,33 @@ export default function transformProps(
           numberFormatter,
           sanitizeName: true,
         });
-        return tooltipHtml(
-          [[metricLabel, formattedValue, formattedPercent]],
-          name,
-        );
+        const rows: string[][] = [
+          [metricLabel, formattedValue, formattedPercent],
+        ];
+        if (secondaryMetric) {
+          const secondaryMetricLabel = getMetricLabel(secondaryMetric);
+          const secondaryValueFormatter = getValueFormatter(
+            secondaryMetric,
+            currencyFormats,
+            columnFormats,
+            numberFormat,
+            currencyFormat,
+          );
+          const secondaryValue =
+            data[params.dataIndex]?.[secondaryMetricLabel];
+          rows.push([
+            secondaryMetricLabel,
+            secondaryValueFormatter(
+              secondaryValue == null
+                ? 0
+                : typeof secondaryValue === 'number'
+                  ? secondaryValue
+                  : convertInteger(secondaryValue as string | number),
+            ),
+            '',
+          ]);
+        }
+        return tooltipHtml(rows, name);
       },
     },
     legend: {

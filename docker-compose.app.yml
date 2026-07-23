@@ -1,0 +1,157 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# ============================================================================
+#  简化版 Docker Compose —— Superset + MySQL
+#
+#  使用方式（二选一）：
+#
+#   方式 A：开发机 build，FTP 传镜像到测试机（推荐你现有的方式）
+#     开发机：
+#       docker build -t superset:latest -f Dockerfile3 .
+#       docker save -o superset.tar superset:latest
+#       # FTP 上传 superset.tar 和此文件到测试机
+#     测试机：
+#       docker load < superset.tar
+#       docker compose -f docker-compose.app.yml up -d
+#
+#   方式 B：测试机上直接 build
+#       docker compose -f docker-compose.app.yml up -d --build
+#
+#  访问：
+#    http://<服务器IP>:8088      admin / admin
+#
+#  常用命令：
+#    # 开发机 build 并打包镜像
+#    docker build -t superset:latest -f Dockerfile3 .
+#    docker save -o superset.tar superset:latest
+#
+#    # 测试机：加载镜像
+#    docker load < superset.tar
+#
+#    # 测试机：首次部署（初始化 DB + 启动所有服务）
+#    docker compose -f docker-compose.app.yml up -d
+#
+#    # 测试机：查看日志
+#    docker compose -f docker-compose.app.yml logs -f
+#
+#    # 测试机：日常更新（只重建 superset，不动 MySQL 和初始化）
+#    docker compose -f docker-compose.app.yml up -d --no-recreate superset
+#
+#    # 测试机：停止服务（保留数据）
+#    docker compose -f docker-compose.app.yml down
+#
+#    # 测试机：停止并清空所有数据
+#    docker compose -f docker-compose.app.yml down -v
+# ============================================================================
+
+services:
+
+  # ================================================================
+  #  MySQL
+  # ================================================================
+  mysql:
+    image: mysql:8.0.39
+    container_name: superset-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: superset_metadata
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - superset-net
+
+  # ================================================================
+  #  Superset 初始化（已注释，如需初始化手动执行）
+  #     docker compose -f docker-compose.app.yml run --rm superset-init
+  # ================================================================
+  # superset-init:
+  #   image: superset:5.0
+  #   container_name: superset-init
+  #   command: ["/app/docker/docker-init.sh"]
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+  #   networks:
+  #     - superset-net
+  #   environment:
+  #     SUPERSET__SQLALCHEMY_DATABASE_URI: "mysql://root:123456@mysql:3306/superset_metadata?charset=utf8mb4"
+  #     SUPERSET_LOAD_EXAMPLES: "no"
+  #     ADMIN_PASSWORD: admin
+  #   volumes:
+  #     - superset_home:/app/superset_home
+  #   healthcheck:
+  #     disable: true
+
+  # ================================================================
+  #  Superset 应用（Gunicorn）
+  # ================================================================
+  superset:
+    # 方式 A：引用已存在的镜像
+    image: superset:5.0
+
+    # 方式 B：测试机上直接 build 时，注释掉上面 image 行，取消下面注释
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile3
+
+    container_name: superset-app
+    restart: always
+    ports:
+      - "8088:8088"
+    networks:
+      - superset-net
+    environment:
+      SUPERSET__SQLALCHEMY_DATABASE_URI: "mysql://root:123456@mysql:3306/superset_metadata?charset=utf8mb4"
+      ADMIN_PASSWORD: admin
+    volumes:
+      - superset_home:/app/superset_home
+
+  # ================================================================
+  #  Redis（可选 —— Celery 异步任务、报表缓存）
+  # ================================================================
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: superset-redis
+  #   restart: always
+  #   volumes:
+  #     - redis_data:/data
+  #   networks:
+  #     - superset-net
+
+volumes:
+  mysql_data:
+    driver: local
+  superset_home:
+    driver: local
+  # redis_data:
+  #   driver: local
+
+networks:
+  superset-net:
+    driver: bridge

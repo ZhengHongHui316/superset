@@ -122,10 +122,15 @@ export default function MonthRangeFilterPlugin(
 
   const setDataMaskRef = useRef(setDataMask);
   setDataMaskRef.current = setDataMask;
+  const defaultAppliedRef = useRef(false);
 
   const handleMonthChange = useCallback(
     (dates: any) => {
       if (!dates || dates.length !== 2) {
+        setDataMask({
+          extraFormData: {},
+          filterState: { value: undefined, label: undefined },
+        });
         return;
       }
       const timeRange = `${dates[0].startOf('month').format('YYYY-MM-DD')} : ${dates[1].endOf('month').format('YYYY-MM-DD')}`;
@@ -143,15 +148,23 @@ export default function MonthRangeFilterPlugin(
   useEffect(() => {
     const { value } = filterState;
     if (value && value !== NO_TIME_RANGE && MONTH_PRESETS[value]) {
+      defaultAppliedRef.current = true;
       applyMonthPreset(value, setDataMaskRef.current);
     } else if (
       (!value || value === NO_TIME_RANGE) &&
       defaultMonthRange &&
-      MONTH_PRESETS[defaultMonthRange]
+      MONTH_PRESETS[defaultMonthRange] &&
+      !defaultAppliedRef.current
     ) {
+      defaultAppliedRef.current = true;
       applyMonthPreset(defaultMonthRange, setDataMaskRef.current);
     }
-  }, [filterState?.value, defaultMonthRange]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filterState?.value, defaultMonthRange]);
+
+  // Reset default tracking when the config changes
+  useEffect(() => {
+    defaultAppliedRef.current = false;
+  }, [defaultMonthRange]);
 
   const monthRange = useMemo(() => {
     const { value } = filterState;

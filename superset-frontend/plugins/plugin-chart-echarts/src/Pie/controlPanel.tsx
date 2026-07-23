@@ -51,6 +51,7 @@ const config: ControlPanelConfig = {
       controlSetRows: [
         ['groupby'],
         ['metric'],
+        ['secondary_metric'],
         ['adhoc_filters'],
         ['row_limit'],
         [

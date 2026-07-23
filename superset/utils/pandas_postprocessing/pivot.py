@@ -39,6 +39,7 @@ def pivot(  # pylint: disable=too-many-arguments
     combine_value_with_metric: bool = False,
     marginal_distributions: Optional[bool] = None,
     marginal_distribution_name: Optional[str] = None,
+    sort: bool = True,
 ) -> DataFrame:
     """
     Perform a pivot operation on a DataFrame.
@@ -96,6 +97,7 @@ def pivot(  # pylint: disable=too-many-arguments
         aggfunc=aggfunc,
         fill_value=metric_fill_value,
         dropna=drop_missing_columns,
+        sort=sort,
         margins=marginal_distributions,
         margins_name=marginal_distribution_name,
     )

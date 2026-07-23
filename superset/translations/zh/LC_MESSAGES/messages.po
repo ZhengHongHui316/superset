@@ -14370,3 +14370,9 @@ msgstr "年"
 
 msgid "zoom area"
 msgstr "缩放面积"
+
+msgid "Preserve query sort order"
+msgstr "保留查询排序"
+
+msgid "Keep X-axis order from the SQL query instead of alphabetical sorting"
+msgstr "保持X轴按SQL查询顺序排列，而非字母顺序"

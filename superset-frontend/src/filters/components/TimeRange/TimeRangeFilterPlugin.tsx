@@ -120,12 +120,17 @@ export default function TimeRangeFilterPlugin(
 
   const setDataMaskRef = useRef(setDataMask);
   setDataMaskRef.current = setDataMask;
+  const defaultAppliedRef = useRef(false);
 
   const locale = useLocale();
 
   const handleTimeRangeChange = useCallback(
     (dates: any) => {
       if (!dates || dates.length !== 2) {
+        setDataMask({
+          extraFormData: {},
+          filterState: { value: undefined, label: undefined },
+        });
         return;
       }
       const timeRange = `${dates[0].format('YYYY-MM-DD')} : ${dates[1].format('YYYY-MM-DD')}`;
@@ -142,15 +147,23 @@ export default function TimeRangeFilterPlugin(
   useEffect(() => {
     const { value } = filterState;
     if (value && value !== NO_TIME_RANGE && PRESET_RANGES[value]) {
+      defaultAppliedRef.current = true;
       applyPreset(value, setDataMaskRef.current);
     } else if (
       (!value || value === NO_TIME_RANGE) &&
       defaultTimeRange &&
-      PRESET_RANGES[defaultTimeRange]
+      PRESET_RANGES[defaultTimeRange] &&
+      !defaultAppliedRef.current
     ) {
+      defaultAppliedRef.current = true;
       applyPreset(defaultTimeRange, setDataMaskRef.current);
     }
-  }, [filterState?.value, defaultTimeRange]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filterState?.value, defaultTimeRange]);
+
+  // Reset default tracking when the config changes
+  useEffect(() => {
+    defaultAppliedRef.current = false;
+  }, [defaultTimeRange]);
 
   const dateRange = useMemo(() => {
     const { value } = filterState;

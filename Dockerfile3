@@ -1,0 +1,267 @@
+#
+# Apache 软件基金会 (ASF) 许可证
+# 本文件遵循 Apache License 2.0 许可
+# 详见 http://www.apache.org/licenses/LICENSE-2.0
+#
+
+######################################################################
+# 全局构建参数
+######################################################################
+# Python 基础镜像版本
+ARG PY_VER=3.11-slim-bookworm
+
+# 构建平台，默认 amd64
+ARG BUILDPLATFORM=${BUILDPLATFORM:-amd64}
+
+# 是否编译翻译文件，默认关闭
+ARG BUILD_TRANSLATIONS="false"
+
+######################################################################
+# 第一阶段：superset-node-ci —— 前端构建基础环境
+######################################################################
+FROM --platform=${BUILDPLATFORM} node:20-bookworm-slim AS superset-node-ci
+ARG BUILD_TRANSLATIONS
+ENV BUILD_TRANSLATIONS=${BUILD_TRANSLATIONS}
+# 开发模式下跳过前端构建
+ARG DEV_MODE="false"
+ENV DEV_MODE=${DEV_MODE}
+
+COPY docker/ /app/docker/
+# 前端构建命令，默认 build
+ARG NPM_BUILD_CMD="build"
+
+# 安装 node-gyp 编译所需的系统依赖
+RUN /app/docker/apt-install.sh build-essential python3 zstd
+
+# 跳过 Puppeteer 的 Chromium 下载
+ENV BUILD_CMD=${NPM_BUILD_CMD} \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
+# 检查前端构建的内存是否充足
+RUN /app/docker/frontend-mem-nag.sh
+
+WORKDIR /app/superset-frontend
+
+# 创建前端构建产物目录
+RUN mkdir -p /app/superset/static/assets \
+             /app/superset/translations
+
+# 挂载 package.json 安装依赖（利用 Docker 缓存，依赖没变就不重装）
+RUN --mount=type=bind,source=./superset-frontend/package.json,target=./package.json \
+    --mount=type=bind,source=./superset-frontend/package-lock.json,target=./package-lock.json \
+    --mount=type=cache,target=/root/.cache \
+    --mount=type=cache,target=/root/.npm \
+    if [ "$DEV_MODE" = "false" ]; then \
+        npm ci; \
+    else \
+        echo "跳过 'npm ci'（开发模式）"; \
+    fi
+
+# 拷贝前端源码
+COPY superset-frontend /app/superset-frontend
+
+######################################################################
+# 第二阶段：superset-node —— 编译前端资源
+######################################################################
+FROM superset-node-ci AS superset-node
+
+# 执行前端构建（开发模式下跳过）
+RUN --mount=type=cache,target=/root/.npm \
+    if [ "$DEV_MODE" = "false" ]; then \
+        echo "执行 'npm run ${BUILD_CMD}'"; \
+        npm run ${BUILD_CMD}; \
+    else \
+        echo "跳过 'npm run ${BUILD_CMD}'（开发模式）"; \
+    fi;
+
+# 拷贝翻译文件
+COPY superset/translations /app/superset/translations
+
+# 编译翻译文件，然后清理源文件只保留编译结果
+RUN if [ "$BUILD_TRANSLATIONS" = "true" ]; then \
+        npm run build-translation; \
+    fi; \
+    rm -rf /app/superset/translations/*/*/*.po; \
+    rm -rf /app/superset/translations/*/*/*.mo;
+
+
+######################################################################
+# 第三阶段：python-base —— Python 基础环境
+######################################################################
+FROM python:${PY_VER} AS python-base
+
+ARG SUPERSET_HOME="/app/superset_home"
+ENV SUPERSET_HOME=${SUPERSET_HOME}
+# uv 使用清华镜像源（国内加速）
+ENV UV_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"
+
+# 创建 superset 用户（不用 root 运行，更安全）
+RUN mkdir -p $SUPERSET_HOME
+RUN useradd --user-group -d ${SUPERSET_HOME} -m --no-log-init --shell /bin/bash superset \
+    && chmod -R 1777 $SUPERSET_HOME \
+    && chown -R superset:superset $SUPERSET_HOME
+
+COPY --chmod=755 docker/*.sh /app/docker/
+
+# 安装 uv（比 pip 更快的 Python 包管理器）
+RUN pip install --no-cache-dir --upgrade uv
+
+# 创建 Python 虚拟环境
+RUN uv venv /app/.venv
+ENV PATH="/app/.venv/bin:${PATH}"
+
+######################################################################
+# 第四阶段：python-translation-compiler —— 编译 Python 翻译文件
+######################################################################
+FROM python-base AS python-translation-compiler
+
+ARG BUILD_TRANSLATIONS
+ENV BUILD_TRANSLATIONS=${BUILD_TRANSLATIONS}
+
+# 安装翻译编译所需的 Python 依赖
+COPY requirements/translations.txt requirements/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    . /app/.venv/bin/activate && /app/docker/pip-install.sh --requires-build-essential -r requirements/translations.txt
+
+# 用 pybabel 编译 .po 翻译源文件为 .mo 二进制文件
+COPY superset/translations/ /app/translations_mo/
+RUN if [ "$BUILD_TRANSLATIONS" = "true" ]; then \
+        pybabel compile -d /app/translations_mo | true; \
+    fi; \
+    rm -f /app/translations_mo/*/*/*.po; \
+    rm -f /app/translations_mo/*/*/*.json;
+
+######################################################################
+# 第五阶段：python-common —— 所有最终镜像的公共基础层
+######################################################################
+FROM python-base AS python-common
+
+# 设置运行环境变量
+ENV SUPERSET_HOME="/app/superset_home" \
+    HOME="/app/superset_home" \
+    SUPERSET_ENV="production" \
+    FLASK_APP="superset.app:create_app()" \
+    PYTHONPATH="/app/pythonpath" \
+    SUPERSET_PORT="8088"
+
+# 拷贝启动脚本
+COPY --chmod=755 docker/entrypoints /app/docker/entrypoints
+
+WORKDIR /app
+# 创建必要的目录结构
+RUN mkdir -p \
+      ${PYTHONPATH} \
+      superset/static \
+      requirements \
+      superset-frontend \
+      apache_superset.egg-info \
+      requirements \
+    && touch superset/static/version_info.json
+
+# 可选安装 Playwright 无头浏览器（用于报表截图功能）
+ARG INCLUDE_CHROMIUM="false"
+ARG INCLUDE_FIREFOX="false"
+RUN --mount=type=cache,target=${SUPERSET_HOME}/.cache/uv \
+    if [ "$INCLUDE_CHROMIUM" = "true" ] || [ "$INCLUDE_FIREFOX" = "true" ]; then \
+        uv pip install playwright && \
+        playwright install-deps && \
+        if [ "$INCLUDE_CHROMIUM" = "true" ]; then playwright install chromium; fi && \
+        if [ "$INCLUDE_FIREFOX" = "true" ]; then playwright install firefox; fi; \
+    else \
+        echo "跳过浏览器安装"; \
+    fi
+
+# 拷贝 Python 包构建文件
+COPY pyproject.toml setup.py MANIFEST.in README.md ./
+COPY superset-frontend/package.json superset-frontend/
+COPY scripts/check-env.py scripts/
+
+# 拷贝服务器启动脚本
+COPY --chmod=755 ./docker/entrypoints/run-server.sh /usr/bin/
+
+# 安装系统依赖（SASL 认证、PostgreSQL 客户端、LDAP）
+RUN /app/docker/apt-install.sh \
+      curl \
+      libsasl2-dev \
+      libsasl2-modules-gssapi-mit \
+      libpq-dev \
+      libecpg-dev \
+      libldap2-dev
+
+# 从第二阶段拷贝前端编译产物（JS/CSS 打包文件）
+COPY --from=superset-node /app/superset/static/assets superset/static/assets
+
+# 拷贝 Python 源码
+COPY superset superset
+RUN rm superset/translations/*/*/*.po
+
+# 合并前端和后端的翻译文件
+COPY --from=superset-node /app/superset/translations superset/translations
+COPY --from=python-translation-compiler /app/translations_mo superset/translations
+
+# 健康检查 + 启动命令 + 端口暴露
+HEALTHCHECK CMD curl -f "http://localhost:${SUPERSET_PORT}/health"
+CMD ["/app/docker/entrypoints/run-server.sh"]
+EXPOSE ${SUPERSET_PORT}
+
+######################################################################
+# 第六阶段：lean —— 生产精简镜像
+######################################################################
+FROM python-common AS lean
+
+# 安装运行时 Python 依赖
+COPY requirements/base.txt requirements/
+RUN --mount=type=cache,target=${SUPERSET_HOME}/.cache/uv \
+    /app/docker/pip-install.sh --requires-build-essential -r requirements/base.txt
+# 安装 superset 包本身
+RUN --mount=type=cache,target=${SUPERSET_HOME}/.cache/uv \
+    uv pip install .
+# 预编译 Python 文件以加快启动速度
+RUN python -m compileall /app/superset
+
+######################################################################
+# 第七阶段：custom —— 自定义镜像（国内镜像源 + MySQL 驱动 + 自定义配置）
+######################################################################
+FROM lean AS custom
+
+USER root
+
+# 切换 Debian 镜像源为清华大学镜像（国内构建加速）
+RUN echo "" > /etc/apt/sources.list.d/debian.sources && \
+    echo "Types: deb\n\
+URIs: https://mirrors.tuna.tsinghua.edu.cn/debian\n\
+Suites: bookworm bookworm-updates bookworm-backports\n\
+Components: main contrib non-free non-free-firmware\n\
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg\n\
+\n\
+Types: deb\n\
+URIs: https://security.debian.org/debian-security\n\
+Suites: bookworm-security\n\
+Components: main contrib non-free non-free-firmware\n\
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg" > /etc/apt/sources.list.d/debian.sources
+
+# 安装系统依赖 + MySQL 客户端开发库（用于编译 mysqlclient）
+RUN apt-get update && \
+    apt-get install -y pkg-config build-essential && \
+    apt-get install -y unzip wget libaio1 libcurl4-openssl-dev libmariadb-dev default-libmysqlclient-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# 配置 pip 清华镜像源，安装 mysqlclient 驱动
+RUN /app/.venv/bin/python -m ensurepip && \
+    /app/.venv/bin/python -m pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
+    /app/.venv/bin/python -m pip install --upgrade pip && \
+    /app/.venv/bin/python -m pip install mysqlclient
+
+# 启用中文语言支持（注释掉覆盖语言字典的空赋值，让上方 LANGUAGES 字典生效）
+# BABEL_DEFAULT_LOCALE 已在 config.py 中设为 "zh"，无需修改
+# 中文翻译文件 superset/translations/zh/LC_MESSAGES/ 已通过 COPY superset superset 包含在镜像中
+RUN sed -i 's/^LANGUAGES = {}/# LANGUAGES = {}/g' /app/superset/config.py
+
+# 拷贝自定义配置文件
+COPY superset_config.py /app/superset_config.py
+
+ENV SUPERSET_CONFIG_PATH=/app/superset_config.py
+
+# 切回 superset 用户运行
+USER superset

@@ -1,0 +1,43 @@
+FROM apache/superset:5.0.0
+USER root
+# 切换镜像源
+#RUN sed -i s@/http:\/\/deb.debian.org\/debian@/https:\/\/mirrors.tuna.tsinghua.edu.cn\/debian@g /etc/apt/sources.list.d/debian.sources
+# 清空 debian.sources 文件
+RUN echo "" > /etc/apt/sources.list.d/debian.sources
+
+# 写入清华镜像源
+RUN echo "Types: deb\n\
+URIs: https://mirrors.tuna.tsinghua.edu.cn/debian\n\
+Suites: bookworm bookworm-updates bookworm-backports\n\
+Components: main contrib non-free non-free-firmware\n\
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg\n\
+\n\
+Types: deb\n\
+URIs: https://security.debian.org/debian-security\n\
+Suites: bookworm-security\n\
+Components: main contrib non-free non-free-firmware\n\
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg" > /etc/apt/sources.list.d/debian.sources
+
+# 更新包列表并安装依赖
+RUN apt-get update && \
+    apt-get install -y pkg-config build-essential && \
+    apt-get install -y unzip wget libaio1 libcurl4-openssl-dev libmariadb-dev default-libmysqlclient-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+
+
+# 确保虚拟环境有 pip（某些版本可能需要）
+RUN /app/.venv/bin/python -m ensurepip
+
+# 配置虚拟环境的 pip 并安装驱动
+RUN /app/.venv/bin/python -m pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
+    /app/.venv/bin/python -m pip install --upgrade pip && \
+    /app/.venv/bin/python -m pip install mysqlclient 
+# 复制配置文件
+COPY superset_config.py /app/superset_config.py
+
+# 设置环境变量
+ENV SUPERSET_CONFIG_PATH=/app/superset_config.py
+# 切换用户
+USER superset
