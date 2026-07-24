@@ -126,7 +126,7 @@ export default function MonthRangeFilterPlugin(
 
   const handleMonthChange = useCallback(
     (dates: any) => {
-      if (!dates || dates.length !== 2) {
+      if (!dates) {
         setDataMask({
           extraFormData: {},
           filterState: { value: undefined, label: undefined },
