@@ -316,6 +316,8 @@ const config: ControlPanelConfig = {
                 // [value, label]
                 ['key_a_to_z', t('key a-z')],
                 ['key_z_to_a', t('key z-a')],
+                ['cn_a_to_z', t('chinese number ascending')],
+                ['cn_z_to_a', t('chinese number descending')],
                 ['value_a_to_z', t('value ascending')],
                 ['value_z_to_a', t('value descending')],
               ],
@@ -344,6 +346,8 @@ const config: ControlPanelConfig = {
                 // [value, label]
                 ['key_a_to_z', t('key a-z')],
                 ['key_z_to_a', t('key z-a')],
+                ['cn_a_to_z', t('chinese number ascending')],
+                ['cn_z_to_a', t('chinese number descending')],
                 ['value_a_to_z', t('value ascending')],
                 ['value_z_to_a', t('value descending')],
               ],

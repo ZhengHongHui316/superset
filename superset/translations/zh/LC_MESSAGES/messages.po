@@ -4259,8 +4259,11 @@ msgstr "下载"
 msgid "Download as Image"
 msgstr "下载为图片"
 
+msgid "导出"
+msgstr "导出"
+
 msgid "Download as image"
-msgstr "下载为图片"
+msgstr "导出为图片"
 
 msgid "Download to CSV"
 msgstr "下载为CSV"
@@ -4959,13 +4962,15 @@ msgstr "导出为CSV"
 msgid "Export to .JSON"
 msgstr "导出为JSON"
 
-#, fuzzy
 msgid "Export to Excel"
 msgstr "导出为Excel"
 
 #, fuzzy
 msgid "Export to PDF"
 msgstr "导出为PDF"
+
+msgid "Export to Pivoted Excel"
+msgstr "导出为透视表"
 
 #, fuzzy
 msgid "Export to Pivoted .CSV"
@@ -10301,7 +10306,7 @@ msgid "Submit"
 msgstr "提交"
 
 msgid "Subtotal"
-msgstr ""
+msgstr "小计"
 
 msgid "Success"
 msgstr "成功"
@@ -14316,6 +14321,12 @@ msgstr "升序"
 msgid "value descending"
 msgstr "降序"
 
+msgid "chinese number ascending"
+msgstr "中文数字升序"
+
+msgid "chinese number descending"
+msgstr "中文数字降序"
+
 #, fuzzy
 msgid "var"
 msgstr "变量"
@@ -14376,3 +14387,6 @@ msgstr "保留查询排序"
 
 msgid "Keep X-axis order from the SQL query instead of alphabetical sorting"
 msgstr "保持X轴按SQL查询顺序排列，而非字母顺序"
+
+msgid "Second Metric"
+msgstr "第二指标"

@@ -57,6 +57,50 @@ const numberFormat = function (optsIn) {
 const rx = /(\d+)|(\D+)/g;
 const rd = /\d/;
 const rz = /^0/;
+
+// Chinese number prefix comparison for sort keys like "一组", "二组", "二十组"
+const CN_NUM_MAP = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10, 百: 100, 千: 1000 };
+
+const parseCnNum = str => {
+  if (!str) return null;
+  let result = 0;
+  let segment = 0;
+  for (let i = 0; i < str.length; i += 1) {
+    const ch = str[i];
+    if (!(ch in CN_NUM_MAP)) return null;
+    const n = CN_NUM_MAP[ch];
+    if (n >= 10) {
+      if (segment === 0) segment = 1;
+      result += segment * n;
+      segment = 0;
+    } else {
+      segment = n;
+    }
+  }
+  result += segment;
+  return result || null;
+};
+
+const cnSort = (a, b) => {
+  const aStr = String(a);
+  const bStr = String(b);
+  const aMatch = aStr.match(/^[一二三四五六七八九十百千]+/);
+  const bMatch = bStr.match(/^[一二三四五六七八九十百千]+/);
+  if (aMatch && bMatch) {
+    const aNum = parseCnNum(aMatch[0]);
+    const bNum = parseCnNum(bMatch[0]);
+    if (aNum !== null && bNum !== null && aNum !== bNum) {
+      return aNum - bNum;
+    }
+  }
+  if (aMatch || bMatch) {
+    // only one side has CN prefix → prefixed comes first
+    return aMatch ? -1 : 1;
+  }
+  // no CN prefix → sort by pinyin (zh-CN locale)
+  return aStr.localeCompare(bStr, 'zh-CN');
+};
+
 const naturalSort = (as, bs) => {
   // nulls first
   if (bs !== null && as === null) {
@@ -667,8 +711,10 @@ class PivotData {
     return this.formattedAggregators[groupName][groupValue] || this.aggregator;
   }
 
-  arrSort(attrs, partialOnTop, reverse = false) {
-    const sortersArr = attrs.map(a => getSort(this.props.sorters, a));
+  arrSort(attrs, partialOnTop, reverse = false, customSort) {
+    const sortersArr = attrs.map(a =>
+      customSort ? customSort : getSort(this.props.sorters, a),
+    );
     return function (a, b) {
       const limit = Math.min(a.length, b.length);
       for (let i = 0; i < limit; i += 1) {
@@ -692,6 +738,16 @@ class PivotData {
             this.arrSort(this.props.rows, this.subtotals.rowPartialOnTop, true),
           );
           break;
+        case 'cn_a_to_z':
+          this.rowKeys.sort(
+            this.arrSort(this.props.rows, this.subtotals.rowPartialOnTop, false, cnSort),
+          );
+          break;
+        case 'cn_z_to_a':
+          this.rowKeys.sort(
+            this.arrSort(this.props.rows, this.subtotals.rowPartialOnTop, true, cnSort),
+          );
+          break;
         case 'value_a_to_z':
           this.rowKeys.sort((a, b) => naturalSort(v(a, []), v(b, [])));
           break;
@@ -707,6 +763,16 @@ class PivotData {
         case 'key_z_to_a':
           this.colKeys.sort(
             this.arrSort(this.props.cols, this.subtotals.colPartialOnTop, true),
+          );
+          break;
+        case 'cn_a_to_z':
+          this.colKeys.sort(
+            this.arrSort(this.props.cols, this.subtotals.colPartialOnTop, false, cnSort),
+          );
+          break;
+        case 'cn_z_to_a':
+          this.colKeys.sort(
+            this.arrSort(this.props.cols, this.subtotals.colPartialOnTop, true, cnSort),
           );
           break;
         case 'value_a_to_z':

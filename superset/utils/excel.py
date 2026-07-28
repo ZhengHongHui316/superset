@@ -63,6 +63,22 @@ def apply_column_types(
     :param column_types: The types of the columns
     :return: The dataframe with the column types applied
     """
+    # Deduplicate column names: if labels are repeated (common with
+    # multiple metrics or verbose names), append a suffix so pandas
+    # indexing by column name works correctly.
+    seen = {}
+    new_columns = []
+    for col in df.columns:
+        if col in seen:
+            seen[col] += 1
+            new_columns.append(f"{col}_{seen[col]}")
+        else:
+            seen[col] = 0
+            new_columns.append(col)
+    if new_columns != list(df.columns):
+        df = df.copy()
+        df.columns = new_columns
+
     for column, column_type in zip(df.columns, column_types, strict=False):
         if column_type == GenericDataType.NUMERIC:
             try:
@@ -74,7 +90,7 @@ def apply_column_types(
                     if isinstance(x, (int, float)) and abs(x) > 10**15
                     else x
                 )
-            except ValueError:
+            except (ValueError, TypeError):
                 df[column] = df[column].astype(str)
         elif pd.api.types.is_datetime64tz_dtype(df[column]):
             # timezones are not supported
