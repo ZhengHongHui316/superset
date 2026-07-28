@@ -337,60 +337,30 @@ export const useExploreAdditionalActionsMenu = (
           </Menu.SubMenu>
           <Menu.Divider />
         </>
-        <Menu.SubMenu title={t('Download')} key={MENU_KEYS.DOWNLOAD_SUBMENU}>
-          {VIZ_TYPES_PIVOTABLE.includes(latestQueryFormData.viz_type) ? (
-            <>
-              <Menu.Item
-                key={MENU_KEYS.EXPORT_TO_CSV}
-                icon={<Icons.FileOutlined css={iconReset} />}
-                disabled={!canDownloadCSV}
-              >
-                {t('Export to original .CSV')}
-              </Menu.Item>
-              <Menu.Item
-                key={MENU_KEYS.EXPORT_TO_CSV_PIVOTED}
-                icon={<Icons.FileOutlined css={iconReset} />}
-                disabled={!canDownloadCSV}
-              >
-                {t('Export to pivoted .CSV')}
-              </Menu.Item>
-            </>
-          ) : (
-            <Menu.Item
-              key={MENU_KEYS.EXPORT_TO_CSV}
-              icon={<Icons.FileOutlined css={iconReset} />}
-              disabled={!canDownloadCSV}
-            >
-              {t('Export to .CSV')}
-            </Menu.Item>
-          )}
-          <Menu.Item
-            key={MENU_KEYS.EXPORT_TO_JSON}
-            icon={<Icons.FileOutlined css={iconReset} />}
-            disabled={!canDownloadCSV}
-          >
-            {t('Export to .JSON')}
-          </Menu.Item>
+        <Menu.SubMenu title={t('导出')} key={MENU_KEYS.DOWNLOAD_SUBMENU}>
           <Menu.Item
             key={MENU_KEYS.DOWNLOAD_AS_IMAGE}
             icon={<Icons.FileImageOutlined css={iconReset} />}
           >
             {t('Download as image')}
           </Menu.Item>
-          <Menu.Item
-            key={MENU_KEYS.EXPORT_TO_XLSX}
-            icon={<Icons.FileOutlined css={iconReset} />}
-            disabled={!canDownloadCSV}
-          >
-            {t('Export to Excel')}
-          </Menu.Item>
-          <Menu.Item
-            key={MENU_KEYS.EXPORT_TO_PIVOT_XLSX}
-            icon={<Icons.FileOutlined css={iconReset} />}
-            disabled={!canDownloadCSV}
-          >
-            {t('Export to Pivoted Excel')}
-          </Menu.Item>
+          {VIZ_TYPES_PIVOTABLE.includes(latestQueryFormData.viz_type) ? (
+            <Menu.Item
+              key={MENU_KEYS.EXPORT_TO_PIVOT_XLSX}
+              icon={<Icons.FileOutlined css={iconReset} />}
+              disabled={!canDownloadCSV}
+            >
+              {t('Export to Pivoted Excel')}
+            </Menu.Item>
+          ) : (
+            <Menu.Item
+              key={MENU_KEYS.EXPORT_TO_XLSX}
+              icon={<Icons.FileOutlined css={iconReset} />}
+              disabled={!canDownloadCSV}
+            >
+              {t('Export to Excel')}
+            </Menu.Item>
+          )}
         </Menu.SubMenu>
         <Menu.SubMenu title={t('Share')} key={MENU_KEYS.SHARE_SUBMENU}>
           <Menu.Item key={MENU_KEYS.COPY_PERMALINK}>

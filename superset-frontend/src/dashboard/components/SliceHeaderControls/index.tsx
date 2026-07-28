@@ -55,6 +55,7 @@ import { LOG_ACTIONS_CHART_DOWNLOAD_AS_IMAGE } from 'src/logger/LogUtils';
 import { MenuKeys, RootState } from 'src/dashboard/types';
 import DrillDetailModal from 'src/components/Chart/DrillDetail/DrillDetailModal';
 import { usePermissions } from 'src/hooks/usePermissions';
+import { isUserAdmin } from 'src/dashboard/util/permissionUtils';
 import { useCrossFiltersScopingModal } from '../nativeFilters/FilterBar/CrossFilters/ScopingModal/useCrossFiltersScopingModal';
 import { ViewResultsModalTrigger } from './ViewResultsModalTrigger';
 
@@ -183,6 +184,8 @@ const SliceHeaderControls = (
       ?.behaviors?.includes(Behavior.InteractiveChart);
   const canExplore = props.supersetCanExplore;
   const { canDrillToDetail, canViewQuery, canViewTable } = usePermissions();
+  const user = useSelector<RootState, any>(state => state.user);
+  const isAdmin = isUserAdmin(user);
   const refreshChart = () => {
     if (props.updatedDttm) {
       props.forceRefresh(props.slice.slice_id, props.dashboardId);
@@ -303,7 +306,6 @@ const SliceHeaderControls = (
     supersetCanShare = false,
     isCached = [],
   } = props;
-  const isTable = slice.viz_type === VizType.Table;
   const isPivotTable = slice.viz_type === VizType.PivotTable;
   const cachedWhen = (cachedDttm || []).map(itemCachedDttm =>
     extendedDayjs.utc(itemCachedDttm).fromNow(),
@@ -401,7 +403,7 @@ const SliceHeaderControls = (
 
       {(canExplore || canEditCrossFilters) && <Menu.Divider />}
 
-      {(canExplore || canViewQuery) && (
+      {(canExplore || canViewQuery) && isAdmin && (
         <Menu.Item key={MenuKeys.ViewQuery}>
           <ModalTrigger
             triggerNode={
@@ -453,7 +455,7 @@ const SliceHeaderControls = (
 
       {(slice.description || canExplore) && <Menu.Divider />}
 
-      {supersetCanShare && (
+      {isAdmin && supersetCanShare && (
         <ShareMenuItems
           dashboardId={dashboardId}
           dashboardComponentId={componentId}
@@ -470,56 +472,22 @@ const SliceHeaderControls = (
       )}
 
       {props.supersetCanCSV && (
-        <Menu.SubMenu title={t('Download')} key={MenuKeys.Download}>
-          <Menu.Item
-            key={MenuKeys.ExportCsv}
-            icon={<Icons.FileOutlined css={dropdownIconsStyles} />}
-          >
-            {t('Export to .CSV')}
-          </Menu.Item>
-          {isPivotTable && (
-            <Menu.Item
-              key={MenuKeys.ExportPivotCsv}
-              icon={<Icons.FileOutlined css={dropdownIconsStyles} />}
-            >
-              {t('Export to Pivoted .CSV')}
-            </Menu.Item>
-          )}
-          <Menu.Item
-            key={MenuKeys.ExportXlsx}
-            icon={<Icons.FileOutlined css={dropdownIconsStyles} />}
-          >
-            {t('Export to Excel')}
-          </Menu.Item>
-
-          {isPivotTable && (
+        <Menu.SubMenu title={t('导出')} key={MenuKeys.Download}>
+          {isPivotTable ? (
             <Menu.Item
               key={MenuKeys.ExportPivotXlsx}
               icon={<Icons.FileOutlined css={dropdownIconsStyles} />}
             >
               {t('Export to Pivoted Excel')}
             </Menu.Item>
+          ) : (
+            <Menu.Item
+              key={MenuKeys.ExportXlsx}
+              icon={<Icons.FileOutlined css={dropdownIconsStyles} />}
+            >
+              {t('Export to Excel')}
+            </Menu.Item>
           )}
-
-          {isFeatureEnabled(FeatureFlag.AllowFullCsvExport) &&
-            props.supersetCanCSV &&
-            isTable && (
-              <>
-                <Menu.Item
-                  key={MenuKeys.ExportFullCsv}
-                  icon={<Icons.FileOutlined css={dropdownIconsStyles} />}
-                >
-                  {t('Export to full .CSV')}
-                </Menu.Item>
-                <Menu.Item
-                  key={MenuKeys.ExportFullXlsx}
-                  icon={<Icons.FileOutlined css={dropdownIconsStyles} />}
-                >
-                  {t('Export to full Excel')}
-                </Menu.Item>
-              </>
-            )}
-
           <Menu.Item
             key={MenuKeys.DownloadAsImage}
             icon={<Icons.FileImageOutlined css={dropdownIconsStyles} />}

@@ -50,7 +50,7 @@ import { Switch } from 'src/components/Switch';
 import getBootstrapData from 'src/utils/getBootstrapData';
 import { TableTab } from 'src/views/CRUD/types';
 import SubMenu, { SubMenuProps } from 'src/features/home/SubMenu';
-import { userHasPermission } from 'src/dashboard/util/permissionUtils';
+import { userHasPermission, isUserAdmin } from 'src/dashboard/util/permissionUtils';
 import { WelcomePageLastTab } from 'src/features/home/types';
 import ActivityTable from 'src/features/home/ActivityTable';
 import ChartTable from 'src/features/home/ChartTable';
@@ -398,20 +398,22 @@ function Welcome({ user, addDangerToast }: WelcomeProps) {
                   />
                 )}
               </Collapse.Panel>
-              <Collapse.Panel header={t('Charts')} key="3">
-                {!chartData || isRecentActivityLoading ? (
-                  <LoadingCards cover={checked} />
-                ) : (
-                  <ChartTable
-                    showThumbnails={checked}
-                    user={user}
-                    mine={chartData}
-                    otherTabData={activityData?.[TableTab.Other]}
-                    otherTabFilters={otherTabFilters}
-                    otherTabTitle={otherTabTitle}
-                  />
-                )}
-              </Collapse.Panel>
+              {isUserAdmin(user) && (
+                <Collapse.Panel header={t('Charts')} key="3">
+                  {!chartData || isRecentActivityLoading ? (
+                    <LoadingCards cover={checked} />
+                  ) : (
+                    <ChartTable
+                      showThumbnails={checked}
+                      user={user}
+                      mine={chartData}
+                      otherTabData={activityData?.[TableTab.Other]}
+                      otherTabFilters={otherTabFilters}
+                      otherTabTitle={otherTabTitle}
+                    />
+                  )}
+                </Collapse.Panel>
+              )}
               {canReadSavedQueries && (
                 <Collapse.Panel header={t('Saved queries')} key="4">
                   {!queryData ? (

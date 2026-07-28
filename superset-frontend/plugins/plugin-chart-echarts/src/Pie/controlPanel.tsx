@@ -51,7 +51,15 @@ const config: ControlPanelConfig = {
       controlSetRows: [
         ['groupby'],
         ['metric'],
-        ['secondary_metric'],
+        [
+          {
+            name: 'secondary_metric',
+            config: {
+              ...sharedControls.secondary_metric,
+              label: t('Second Metric'),
+            },
+          },
+        ],
         ['adhoc_filters'],
         ['row_limit'],
         [

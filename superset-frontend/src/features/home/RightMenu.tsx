@@ -510,6 +510,12 @@ const RightMenu = ({
           {!navbarRight.user_is_anonymous && [
             <Menu.Divider key="user-divider" />,
             <Menu.ItemGroup key="user-section" title={t('User')}>
+              <Menu.Item key="username" disabled>
+                <StyledMenuItemWithIcon>
+                  {user.username || user.firstName}
+                  <StyledI className="fa fa-user" />
+                </StyledMenuItemWithIcon>
+              </Menu.Item>
               {navbarRight.user_info_url && (
                 <Menu.Item key="info">
                   <a href={navbarRight.user_info_url}>{t('Info')}</a>
