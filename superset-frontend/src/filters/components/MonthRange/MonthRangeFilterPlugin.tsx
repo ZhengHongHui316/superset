@@ -194,7 +194,6 @@ export default function MonthRangeFilterPlugin(
           onBlur={unsetFocusedFilter}
           onMouseEnter={setHoveredFilter}
           onMouseLeave={unsetHoveredFilter}
-          onMouseDown={(e) => e.preventDefault()}
         >
           <RangePicker
             picker="month"

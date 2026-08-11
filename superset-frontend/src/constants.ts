@@ -201,6 +201,8 @@ export enum FilterPlugins {
   Time = 'filter_time',
   TimeRange = 'filter_timerange',
   MonthRange = 'filter_monthrange',
+  Quarter = 'filter_quarter',
+  Year = 'filter_year',
   TimeColumn = 'filter_timecolumn',
   TimeGrain = 'filter_timegrain',
 }

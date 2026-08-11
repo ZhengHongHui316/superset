@@ -193,7 +193,6 @@ export default function TimeRangeFilterPlugin(
           onBlur={unsetFocusedFilter}
           onMouseEnter={setHoveredFilter}
           onMouseLeave={unsetHoveredFilter}
-          onMouseDown={(e) => e.preventDefault()}
         >
           <RangePicker
             value={dateRange as any}

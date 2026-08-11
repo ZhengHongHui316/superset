@@ -75,6 +75,8 @@ import {
   TimeFilterPlugin,
   TimeRangeFilterPlugin,
   MonthRangeFilterPlugin,
+  QuarterFilterPlugin,
+  YearFilterPlugin,
   TimeColumnFilterPlugin,
   TimeGrainFilterPlugin,
 } from 'src/filters/components';
@@ -168,6 +170,12 @@ export default class MainPreset extends Preset {
         }),
         new MonthRangeFilterPlugin().configure({
           key: FilterPlugins.MonthRange,
+        }),
+        new QuarterFilterPlugin().configure({
+          key: FilterPlugins.Quarter,
+        }),
+        new YearFilterPlugin().configure({
+          key: FilterPlugins.Year,
         }),
         new TimeColumnFilterPlugin().configure({
           key: FilterPlugins.TimeColumn,

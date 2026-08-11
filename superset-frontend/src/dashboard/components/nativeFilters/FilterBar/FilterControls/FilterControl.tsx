@@ -191,7 +191,8 @@ const useFilterControlDisplay = (
       }
       const isDateRangeType =
         filterType === 'filter_monthrange' ||
-        filterType === 'filter_timerange';
+        filterType === 'filter_timerange' ||
+        filterType === 'filter_quarter';
       return {
         FilterControlContainer: HorizontalFilterControlContainer,
         FormItem: isDateRangeType ? HorizontalFormItemWide : HorizontalFormItem,
