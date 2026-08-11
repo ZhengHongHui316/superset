@@ -178,7 +178,9 @@ const FilterBar: FC<FiltersBarProps> = ({
             undefined &&
           (filter.requiredFirst ||
             filter.filterType === 'filter_timerange' ||
-            filter.filterType === 'filter_monthrange')
+            filter.filterType === 'filter_monthrange' ||
+            filter.filterType === 'filter_quarter' ||
+            filter.filterType === 'filter_year')
         ) {
           dispatch(updateDataMask(filter.id, dataMask));
         }
