@@ -1220,7 +1220,9 @@ const FiltersConfigForm = (
               <TextArea onChange={debouncedFormChanged} />
             </StyledFormItem>
             {formFilter?.filterType !== FilterPlugins.TimeRange &&
-              formFilter?.filterType !== FilterPlugins.MonthRange && (
+              formFilter?.filterType !== FilterPlugins.MonthRange &&
+              formFilter?.filterType !== FilterPlugins.Quarter &&
+              formFilter?.filterType !== FilterPlugins.Year && (
                 <>
                   <CleanFormItem
                     name={['filters', filterId, 'defaultValueQueriesData']}
