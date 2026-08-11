@@ -37,6 +37,50 @@ function getQuarterEnd(date: dayjs.Dayjs): dayjs.Dayjs {
   return date.month(quarter * 3 + 2).endOf('month');
 }
 
+// 解析季度预设
+function resolveQuarterPreset(
+  preset: string,
+): [dayjs.Dayjs, dayjs.Dayjs] | null {
+  const now = dayjs();
+  if (preset === 'This quarter') {
+    return [getQuarterStart(now), getQuarterEnd(now)];
+  }
+  if (preset === 'Last quarter') {
+    const lastQuarter = now.subtract(3, 'month');
+    return [getQuarterStart(lastQuarter), getQuarterEnd(lastQuarter)];
+  }
+  // 解析 "2026-Q1" 格式
+  const match = preset.match(/^(\d{4})-Q(\d)$/);
+  if (match) {
+    const year = parseInt(match[1], 10);
+    const q = parseInt(match[2], 10);
+    const start = dayjs().year(year).month((q - 1) * 3).startOf('month');
+    const end = dayjs().year(year).month((q - 1) * 3 + 2).endOf('month');
+    return [start, end];
+  }
+  return null;
+}
+
+// 应用季度预设
+function applyQuarterPreset(
+  preset: string,
+  setDataMask: PluginFilterQuarterProps['setDataMask'],
+) {
+  const resolved = resolveQuarterPreset(preset);
+  if (!resolved) return;
+  const timeRange = `${resolved[0].format('YYYY-MM-DD')} : ${resolved[1].format('YYYY-MM-DD')}`;
+  const startQuarter = Math.floor(resolved[0].month() / 3) + 1;
+  const endQuarter = Math.floor(resolved[1].month() / 3) + 1;
+  const label = `${resolved[0].format('YYYY')}-Q${startQuarter} : ${resolved[1].format('YYYY')}-Q${endQuarter}`;
+  setDataMask({
+    extraFormData: {
+      filters: [{ col: 'quarter_val', op: '==', val: timeRange }],
+    },
+    // value 保存预设名称，和月度过滤器保持一致
+    filterState: { value: preset, label },
+  });
+}
+
 const QuarterStyles = styled(FilterPluginStyle)`
   display: flex;
   align-items: center;
@@ -101,46 +145,21 @@ export default function QuarterFilterPlugin(props: PluginFilterQuarterProps) {
   // 解析默认季度预设
   useEffect(() => {
     const { value } = filterState;
-
-    if ((!value || value === NO_TIME_RANGE) && defaultQuarter && !defaultAppliedRef.current) {
+    // 如果 value 是预设名称，解析并应用
+    if (value && value !== NO_TIME_RANGE && resolveQuarterPreset(value)) {
       defaultAppliedRef.current = true;
-
-      const now = dayjs();
-      let startDate = now;
-      let endDate = now;
-
-      if (defaultQuarter === 'This quarter') {
-        startDate = getQuarterStart(now);
-        endDate = getQuarterEnd(now);
-      } else if (defaultQuarter === 'Last quarter') {
-        const lastQuarter = now.subtract(3, 'month');
-        startDate = getQuarterStart(lastQuarter);
-        endDate = getQuarterEnd(lastQuarter);
-      } else {
-        // 解析 "2026-Q1" 格式
-        const match = defaultQuarter.match(/^(\d{4})-Q(\d)$/);
-        if (match) {
-          const year = parseInt(match[1], 10);
-          const q = parseInt(match[2], 10);
-          startDate = dayjs().year(year).month((q - 1) * 3).startOf('month');
-          endDate = dayjs().year(year).month((q - 1) * 3 + 2).endOf('month');
-        }
-      }
-
-      const timeRange = `${startDate.format('YYYY-MM-DD')} : ${endDate.format('YYYY-MM-DD')}`;
-      // value 和 label 都使用季度格式
-      const startQuarter = Math.floor(startDate.month() / 3) + 1;
-      const endQuarter = Math.floor(endDate.month() / 3) + 1;
-      const value = `${startDate.format('YYYY')}-Q${startQuarter} : ${endDate.format('YYYY')}-Q${endQuarter}`;
-
-      setDataMaskRef.current({
-        extraFormData: {
-          filters: [{ col: 'quarter_val', op: '==', val: timeRange }],
-        },
-        filterState: { value, label: value },
-      });
+      applyQuarterPreset(value, setDataMaskRef.current);
+    } else if (
+      // 如果 value 为空且有默认配置，应用默认预设
+      (!value || value === NO_TIME_RANGE) &&
+      defaultQuarter &&
+      resolveQuarterPreset(defaultQuarter) &&
+      !defaultAppliedRef.current
+    ) {
+      defaultAppliedRef.current = true;
+      applyQuarterPreset(defaultQuarter, setDataMaskRef.current);
     }
-  }, [filterState?.value, defaultQuarter]);
+  }, [filterState?.value, defaultQuarter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 当配置变化时重置默认值追踪
   useEffect(() => {
@@ -151,7 +170,13 @@ export default function QuarterFilterPlugin(props: PluginFilterQuarterProps) {
     const { value } = filterState;
     if (!value || value === NO_TIME_RANGE) return null;
 
-    // 解析 "2026-Q1 : 2026-Q3" 格式
+    // 如果 value 是预设名称，解析它
+    const resolved = resolveQuarterPreset(value);
+    if (resolved) {
+      return [resolved[0], resolved[1]];
+    }
+
+    // 否则 value 是季度范围字符串，如 "2026-Q1 : 2026-Q3"
     const parts = value.split(' : ');
     if (parts.length !== 2) return null;
 

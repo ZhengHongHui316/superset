@@ -16,14 +16,46 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { css, styled, NO_TIME_RANGE } from '@superset-ui/core';
+import { css, styled, NO_TIME_RANGE, t } from '@superset-ui/core';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import dayjs from 'dayjs';
 import { DatePicker } from 'src/components/DatePicker';
 import { AntdThemeProvider } from 'src/components/AntdThemeProvider';
 import { useLocale } from 'src/hooks/useLocale';
-import { PluginFilterYearProps } from './types';
+import { PluginFilterYearProps, YEAR_PRESETS } from './types';
 import { FilterPluginStyle } from '../common';
+
+const PRESET_LABEL_MAP: Record<string, string> = Object.fromEntries(
+  YEAR_PRESETS.map(p => [p.value, p.label]),
+);
+
+type PresetFactory = () => dayjs.Dayjs;
+
+export const YEAR_PRESET_MAP: Record<string, PresetFactory> = {
+  'This year': () => dayjs().startOf('year'),
+  'Last year': () => dayjs().subtract(1, 'year').startOf('year'),
+};
+
+export function resolveYearPreset(preset: string): dayjs.Dayjs | null {
+  const factory = YEAR_PRESET_MAP[preset];
+  return factory ? factory() : null;
+}
+
+function applyYearPreset(
+  preset: string,
+  setDataMask: PluginFilterYearProps['setDataMask'],
+) {
+  const resolved = resolveYearPreset(preset);
+  if (!resolved) return;
+  const timeRange = `${resolved.startOf('year').format('YYYY-MM-DD')} : ${resolved.endOf('year').format('YYYY-MM-DD')}`;
+  setDataMask({
+    extraFormData: {
+      filters: [{ col: 'year_val', op: '==', val: timeRange }],
+    },
+    // value 保存预设名称，和月度过滤器保持一致
+    filterState: { value: preset, label: t(PRESET_LABEL_MAP[preset] || preset) },
+  });
+}
 
 const YearStyles = styled(FilterPluginStyle)`
   display: flex;
@@ -86,28 +118,19 @@ export default function YearFilterPlugin(props: PluginFilterYearProps) {
   // 解析默认年度预设
   useEffect(() => {
     const { value } = filterState;
-
-    if ((!value || value === NO_TIME_RANGE) && defaultYear && !defaultAppliedRef.current) {
+    // 如果 value 是预设名称，解析并应用
+    if (value && value !== NO_TIME_RANGE && YEAR_PRESET_MAP[value]) {
       defaultAppliedRef.current = true;
-
-      const now = dayjs();
-      let year = now;
-
-      if (defaultYear === 'This year') {
-        year = now.startOf('year');
-      } else if (defaultYear === 'Last year') {
-        year = now.subtract(1, 'year').startOf('year');
-      }
-
-      const timeRange = `${year.startOf('year').format('YYYY-MM-DD')} : ${year.endOf('year').format('YYYY-MM-DD')}`;
-      const label = year.format('YYYY');
-
-      setDataMaskRef.current({
-        extraFormData: {
-          filters: [{ col: 'year_val', op: '==', val: timeRange }],
-        },
-        filterState: { value: label, label },
-      });
+      applyYearPreset(value, setDataMaskRef.current);
+    } else if (
+      // 如果 value 为空且有默认配置，应用默认预设
+      (!value || value === NO_TIME_RANGE) &&
+      defaultYear &&
+      YEAR_PRESET_MAP[defaultYear] &&
+      !defaultAppliedRef.current
+    ) {
+      defaultAppliedRef.current = true;
+      applyYearPreset(defaultYear, setDataMaskRef.current);
     }
   }, [filterState?.value, defaultYear]);
 
@@ -120,6 +143,16 @@ export default function YearFilterPlugin(props: PluginFilterYearProps) {
     const { value } = filterState;
     if (!value || value === NO_TIME_RANGE) return null;
 
+    // 如果 value 是预设名称，解析它
+    if (YEAR_PRESET_MAP[value]) {
+      const resolved = resolveYearPreset(value);
+      if (resolved) {
+        return resolved.startOf('year');
+      }
+      return null;
+    }
+
+    // 否则 value 是年份字符串，如 "2026"
     const year = dayjs(value, 'YYYY');
     if (!year.isValid()) return null;
     return year.startOf('year');
