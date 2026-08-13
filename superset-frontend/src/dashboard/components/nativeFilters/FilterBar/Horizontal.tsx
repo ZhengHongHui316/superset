@@ -18,11 +18,9 @@
  */
 
 import { FC, memo, useMemo } from 'react';
-import { DataMaskStateWithId, styled, t, useTheme } from '@superset-ui/core';
+import { DataMaskStateWithId, styled, t } from '@superset-ui/core';
 import Loading from 'src/components/Loading';
 import Button from 'src/components/Button';
-import Icons from 'src/components/Icons';
-import { Tooltip } from 'src/components/Tooltip';
 import { RootState } from 'src/dashboard/types';
 import { useChartLayoutItems } from 'src/dashboard/util/useChartLayoutItems';
 import { useChartIds } from 'src/dashboard/util/charts/useChartIds';
@@ -33,22 +31,44 @@ import { HorizontalBarProps } from './types';
 import FilterBarSettings from './FilterBarSettings';
 import crossFiltersSelector from './CrossFilters/selectors';
 
-const COLLAPSED_HEIGHT = 44; // 收起时的高度，只显示设置图标和展开按钮
-
-const HorizontalBar = styled.div<{ isCollapsed: boolean }>`
-  ${({ theme, isCollapsed }) => `
-    padding: ${theme.gridUnit * 3}px ${theme.gridUnit * 2}px ${
-      theme.gridUnit * 3
+const HorizontalBar = styled.div`
+  ${({ theme }) => `
+    padding: ${theme.gridUnit * 2}px ${theme.gridUnit * 2}px ${
+      theme.gridUnit * 2
     }px ${theme.gridUnit * 4}px;
     background: ${theme.colors.grayscale.light5};
     box-shadow: inset 0px -2px 2px -1px ${theme.colors.grayscale.light2};
-    ${isCollapsed ? `max-height: ${COLLAPSED_HEIGHT}px;` : ''}
-    overflow: hidden;
-    transition: max-height 0.3s ease;
   `}
 `;
 
-const HorizontalBarContent = styled.div`
+// 垂直布局：顶部 header 行（始终可见）+ 底部 body 行（可收起）
+const BarInner = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+// 顶部行：设置图标 + 展开按钮，始终可见
+const HeaderRow = styled.div`
+  ${({ theme }) => `
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    min-height: ${theme.gridUnit * 7}px;
+  `}
+`;
+
+// 底部行：过滤器 + 操作按钮，收起时整行隐藏
+const BodyRow = styled.div<{ isCollapsed: boolean }>`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  ${({ isCollapsed }) => `
+    ${isCollapsed ? 'display: none;' : ''}
+  `}
+`;
+
+// 过滤器内容区域
+const FilterContent = styled.div`
   ${({ theme }) => `
     display: flex;
     flex-direction: row;
@@ -56,6 +76,8 @@ const HorizontalBarContent = styled.div`
     align-items: center;
     justify-content: flex-start;
     line-height: 0;
+    flex: 1;
+    min-width: 0;
 
     .loading {
       margin: ${theme.gridUnit * 2}px auto ${theme.gridUnit * 2}px;
@@ -88,7 +110,6 @@ const HorizontalFilterBar: FC<HorizontalBarProps> = ({
   onSelectionChange,
   toggleFiltersBar,
 }) => {
-  const theme = useTheme();
   const dataMask = useSelector<RootState, DataMaskStateWithId>(
     state => state.dataMask,
   );
@@ -111,77 +132,51 @@ const HorizontalFilterBar: FC<HorizontalBarProps> = ({
   const isCollapsed = !filtersOpen && hasFilters;
   const filterCount = filterValues.length;
 
-  const handleToggle = () => {
-    if (toggleFiltersBar) {
-      toggleFiltersBar(!filtersOpen);
-    }
-  };
-
   return (
-    <HorizontalBar
-      {...getFilterBarTestId()}
-      isCollapsed={isCollapsed}
-    >
-      <HorizontalBarContent>
+    <HorizontalBar {...getFilterBarTestId()}>
+      <BarInner>
+        {/* 顶部行：设置图标 + 展开按钮，始终可见 */}
+        <HeaderRow>
+          <FilterBarSettings />
+          {hasFilters && toggleFiltersBar && (
+            <ToggleButton
+              data-test="horizontal-filterbar-toggle"
+              buttonStyle="link"
+              buttonSize="xsmall"
+              onClick={() => {
+                toggleFiltersBar(!filtersOpen);
+              }}
+            >
+              {filtersOpen ? '收起 ▲' : `展开 ▼ (${filterCount})`}
+            </ToggleButton>
+          )}
+        </HeaderRow>
+
+        {/* 底部行：过滤器内容 + 操作按钮，收起时整行隐藏 */}
         {!isInitialized ? (
-          <Loading position="inline-centered" />
+          <BodyRow isCollapsed={false}>
+            <Loading position="inline-centered" />
+          </BodyRow>
         ) : (
-          <>
-            <FilterBarSettings />
-            {!hasFilters && (
-              <FilterBarEmptyStateContainer data-test="horizontal-filterbar-empty">
-                {t('No filters are currently added to this dashboard.')}
-              </FilterBarEmptyStateContainer>
-            )}
-            {/* 展开时才渲染过滤器 */}
-            {hasFilters && filtersOpen && (
-              <FilterControls
-                dataMaskSelected={dataMaskSelected}
-                filtersOpen={filtersOpen}
-                onFilterSelectionChange={onSelectionChange}
-              />
-            )}
+          <BodyRow isCollapsed={isCollapsed}>
+            <FilterContent>
+              {!hasFilters && (
+                <FilterBarEmptyStateContainer data-test="horizontal-filterbar-empty">
+                  {t('No filters are currently added to this dashboard.')}
+                </FilterBarEmptyStateContainer>
+              )}
+              {hasFilters && (
+                <FilterControls
+                  dataMaskSelected={dataMaskSelected}
+                  filtersOpen={filtersOpen}
+                  onFilterSelectionChange={onSelectionChange}
+                />
+              )}
+            </FilterContent>
             {actions}
-            {hasFilters && toggleFiltersBar && (
-              <Tooltip
-                title={
-                  filtersOpen
-                    ? t('Collapse filters')
-                    : t('Show filters (%s)', filterCount)
-                }
-              >
-                <ToggleButton
-                  data-test="horizontal-filterbar-toggle"
-                  buttonStyle="link"
-                  buttonSize="xsmall"
-                  onClick={handleToggle}
-                >
-                  {filtersOpen ? (
-                    <Icons.Collapse
-                      iconColor={theme.colors.grayscale.base}
-                    />
-                  ) : (
-                    <>
-                      <Icons.FilterSmall
-                        iconColor={theme.colors.grayscale.base}
-                        css={{ marginRight: 4 }}
-                      />
-                      <span
-                        css={(t) => ({
-                          color: t.colors.grayscale.base,
-                          fontSize: t.typography.sizes.m,
-                        })}
-                      >
-                        {filterCount}
-                      </span>
-                    </>
-                  )}
-                </ToggleButton>
-              </Tooltip>
-            )}
-          </>
+          </BodyRow>
         )}
-      </HorizontalBarContent>
+      </BarInner>
     </HorizontalBar>
   );
 };

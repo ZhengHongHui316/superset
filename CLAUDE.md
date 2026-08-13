@@ -109,3 +109,49 @@ Chart plugins register metadata, a React component, `buildQuery` function, `tran
 - **TypeScript/JS**: ESLint (airbnb + prettier config) + Prettier (single quotes, trailing commas). Config in `superset-frontend/.eslintrc.js` and `prettier.config.js`.
 - **Pre-commit hooks**: ruff, mypy, prettier, eslint — run `pre-commit install` to activate.
 - **Indentation**: 4 spaces for Python, 2 spaces for JS/TS/CSS/HTML/JSON.
+
+## Custom Branches
+
+### `feature/filter-bar-wrap` — 水平过滤器栏多行分组布局
+
+基于 `feature-5.0.0-dev` 创建，修改了看板水平过滤器栏的布局方式。
+
+**改动说明：**
+
+- **去掉 "More filters" 折叠**：原来放不下的过滤器会被收进 "More filters (N)" Popover，现在所有过滤器直接可见
+- **Divider 改为分组标题行**：原来水平模式下 Divider 渲染为竖线分隔符（`border-left`），现在改为全宽分组标题 + 底部分隔线（`border-bottom`），可填写标题和描述
+- **按 Divider 分组渲染**：用 Divider 把过滤器切成多个分组，每个分组是一个独立的 `flex-wrap` 行，分组之间是纵向排列（`flex-direction: column`）
+- **整体展开/收起按钮**：水平过滤器栏右侧增加展开/收起切换按钮。收起时仅显示设置图标和展开按钮（高度 44px），过滤器和操作按钮（应用/清除）全部隐藏，通过 `max-height` + `overflow: hidden` + CSS transition 实现平滑折叠
+
+**修改的文件：**
+
+| 文件 | 改动 |
+|------|------|
+| `superset-frontend/src/dashboard/components/nativeFilters/FilterBar/Horizontal.tsx` | `flex-wrap: nowrap` → `flex-wrap: wrap`；增加 `isCollapsed` 控制 `max-height` 收起；条件渲染 `FilterControls` 和 `actions`；添加展开/收起 ToggleButton |
+| `superset-frontend/src/dashboard/components/nativeFilters/FilterBar/FilterControls/FilterControls.tsx` | 去掉 `DropdownContainer` 溢出检测，改为按 Divider 分组渲染 |
+| `superset-frontend/src/dashboard/components/nativeFilters/FilterBar/FilterControls/FilterDivider.tsx` | `HorizontalDivider` 从竖线改为全宽分组标题 + 底部分隔线 |
+| `superset-frontend/src/dashboard/components/nativeFilters/FilterBar/types.ts` | 新增 `HorizontalBarConfig` 接口，`FiltersBarProps` 增加 `horizontalConfig`，`HorizontalBarProps` 增加 `filtersOpen` 和 `toggleFiltersBar` |
+| `superset-frontend/src/dashboard/components/nativeFilters/FilterBar/index.tsx` | 解构并透传 `horizontalConfig` 给 `<Horizontal>` |
+| `superset-frontend/src/dashboard/components/DashboardBuilder/DashboardBuilder.tsx` | 水平模式 `<FilterBar>` 传入 `horizontalConfig`；修复 `renderDraggableContent` useCallback 依赖数组（加入 `dashboardFiltersOpen`、`showFilterBar`、`toggleDashboardFiltersOpen`） |
+| `superset-frontend/src/dashboard/components/DashboardBuilder/state.ts` | `toggleDashboardFiltersOpen` 回调（状态与 Vertical 模式共享） |
+
+**关键调试经验：** `renderDraggableContent` 作为 `useCallback` 传给 `Droppable`（`PureComponent`），如果依赖数组漏掉 `dashboardFiltersOpen`，闭包会捕获旧值导致 UI 不更新。
+
+**不受影响的部分：**
+
+- Vertical 模式完全不变
+- Portal 系统、Redux 状态、过滤器查询逻辑均不变
+- `DropdownContainer` 组件本身没动（其他使用它的地方不受影响）
+- FiltersConfigModal（用户配置 Divider 的 UI）不变
+
+**切换方式：**
+
+```bash
+# 切到新的多行分组布局
+git checkout feature/filter-bar-wrap
+
+# 切回原来的折叠布局
+git checkout feature-5.0.0-dev
+```
+
+切换分支后需要重新 `npm run dev-server` 或 `npm run build`。

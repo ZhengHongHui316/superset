@@ -573,6 +573,9 @@ const DashboardBuilder = () => {
       isReport,
       topLevelTabs,
       uiConfig.hideNav,
+      dashboardFiltersOpen,
+      showFilterBar,
+      toggleDashboardFiltersOpen,
     ],
   );
 
