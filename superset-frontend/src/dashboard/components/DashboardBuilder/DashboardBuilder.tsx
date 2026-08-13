@@ -529,6 +529,10 @@ const DashboardBuilder = () => {
           filterBarOrientation === FilterBarOrientation.Horizontal && (
             <FilterBar
               orientation={FilterBarOrientation.Horizontal}
+              horizontalConfig={{
+                filtersOpen: dashboardFiltersOpen,
+                toggleFiltersBar: toggleDashboardFiltersOpen,
+              }}
               hidden={isReport}
             />
           )}

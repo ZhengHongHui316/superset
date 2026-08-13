@@ -50,11 +50,13 @@ import { useChartsVerboseMaps } from '../utils';
 
 type FilterControlsProps = {
   dataMaskSelected: DataMaskStateWithId;
+  filtersOpen?: boolean;
   onFilterSelectionChange: (filter: Filter, dataMask: DataMask) => void;
 };
 
 const FilterControls: FC<FilterControlsProps> = ({
   dataMaskSelected,
+  filtersOpen = true,
   onFilterSelectionChange,
 }) => {
   const filterBarOrientation = useSelector<RootState, FilterBarOrientation>(
@@ -227,63 +229,66 @@ const FilterControls: FC<FilterControlsProps> = ({
         )}
 
         {/* 按 Divider 分组的 native filters */}
-        {horizontalGroups.map((group, groupIndex) => (
-          <div key={groupIndex}>
-            {group.divider && (
-              <div
-                css={(t: SupersetTheme) => css`
-                  border-bottom: 1px solid ${t.colors.grayscale.light2};
-                  padding-bottom: ${t.gridUnit * 2}px;
-                  margin-bottom: ${t.gridUnit * 2}px;
-                `}
-              >
-                <h3
+        {/* 收起时只显示第一组（无标题），展开时显示所有分组 */}
+        {(filtersOpen ? horizontalGroups : horizontalGroups.slice(0, 1)).map(
+          (group, groupIndex) => (
+            <div key={groupIndex}>
+              {filtersOpen && group.divider && (
+                <div
                   css={(t: SupersetTheme) => css`
-                    font-size: ${t.typography.sizes.m}px;
-                    font-weight: ${t.typography.weights.bold};
-                    margin: 0;
-                    color: ${t.colors.grayscale.dark1};
+                    border-bottom: 1px solid ${t.colors.grayscale.light2};
+                    padding-bottom: ${t.gridUnit * 2}px;
+                    margin-bottom: ${t.gridUnit * 2}px;
                   `}
                 >
-                  {group.divider.title}
-                </h3>
-                {group.divider.description && (
-                  <p
+                  <h3
                     css={(t: SupersetTheme) => css`
-                      font-size: ${t.typography.sizes.s}px;
-                      color: ${t.colors.grayscale.base};
-                      margin: ${t.gridUnit}px 0 0 0;
+                      font-size: ${t.typography.sizes.m}px;
+                      font-weight: ${t.typography.weights.bold};
+                      margin: 0;
+                      color: ${t.colors.grayscale.dark1};
                     `}
                   >
-                    {group.divider.description}
-                  </p>
-                )}
-              </div>
-            )}
-            {group.nativeFilterIndices.length > 0 && (
-              <div
-                css={(theme: SupersetTheme) => css`
-                  display: flex;
-                  flex-wrap: wrap;
-                  align-items: center;
-                  gap: ${theme.gridUnit * 4}px;
-                `}
-              >
-                {group.nativeFilterIndices.map(scopeIndex => {
-                  const filter = filtersInScope[scopeIndex];
-                  const filterIndex = filtersWithValues.findIndex(
-                    f => f.id === filter.id,
-                  );
-                  return (
-                    <div key={filter.id}>
-                      <OutPortal node={portalNodes[filterIndex]} inView />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ))}
+                    {group.divider.title}
+                  </h3>
+                  {group.divider.description && (
+                    <p
+                      css={(t: SupersetTheme) => css`
+                        font-size: ${t.typography.sizes.s}px;
+                        color: ${t.colors.grayscale.base};
+                        margin: ${t.gridUnit}px 0 0 0;
+                      `}
+                    >
+                      {group.divider.description}
+                    </p>
+                  )}
+                </div>
+              )}
+              {group.nativeFilterIndices.length > 0 && (
+                <div
+                  css={(theme: SupersetTheme) => css`
+                    display: flex;
+                    flex-wrap: wrap;
+                    align-items: center;
+                    gap: ${theme.gridUnit * 4}px;
+                  `}
+                >
+                  {group.nativeFilterIndices.map(scopeIndex => {
+                    const filter = filtersInScope[scopeIndex];
+                    const filterIndex = filtersWithValues.findIndex(
+                      f => f.id === filter.id,
+                    );
+                    return (
+                      <div key={filter.id}>
+                        <OutPortal node={portalNodes[filterIndex]} inView />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ),
+        )}
 
         {showCollapsePanel && (
           <FiltersOutOfScopeCollapsible
@@ -297,6 +302,7 @@ const FilterControls: FC<FilterControlsProps> = ({
     ),
     [
       crossFilterElements,
+      filtersOpen,
       horizontalGroups,
       filtersInScope,
       filtersWithValues,

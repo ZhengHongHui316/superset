@@ -46,14 +46,22 @@ interface VerticalBarConfig {
   width: number;
 }
 
+interface HorizontalBarConfig {
+  filtersOpen: boolean;
+  toggleFiltersBar: (visible?: boolean) => void;
+}
+
 export interface FiltersBarProps {
   hidden?: boolean;
   orientation: FilterBarOrientation;
   verticalConfig?: VerticalBarConfig;
+  horizontalConfig?: HorizontalBarConfig;
 }
 
 export type HorizontalBarProps = CommonFiltersBarProps & {
   dashboardId: number;
+  filtersOpen?: boolean;
+  toggleFiltersBar?: (visible?: boolean) => void;
 };
 
 export type VerticalBarProps = Omit<FiltersBarProps, 'orientation'> &

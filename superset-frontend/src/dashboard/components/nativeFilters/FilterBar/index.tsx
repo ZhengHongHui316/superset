@@ -132,6 +132,7 @@ const publishDataMask = debounce(
 const FilterBar: FC<FiltersBarProps> = ({
   orientation = FilterBarOrientation.Vertical,
   verticalConfig,
+  horizontalConfig,
   hidden = false,
 }) => {
   const history = useHistory();
@@ -310,8 +311,10 @@ const FilterBar: FC<FiltersBarProps> = ({
         dashboardId={dashboardId}
         dataMaskSelected={dataMaskSelected}
         filterValues={filterValues}
+        filtersOpen={horizontalConfig?.filtersOpen}
         isInitialized={isInitialized}
         onSelectionChange={handleFilterSelectionChange}
+        toggleFiltersBar={horizontalConfig?.toggleFiltersBar}
       />
     ) : verticalConfig ? (
       <Vertical

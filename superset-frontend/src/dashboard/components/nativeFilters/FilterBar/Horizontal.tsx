@@ -18,8 +18,11 @@
  */
 
 import { FC, memo, useMemo } from 'react';
-import { DataMaskStateWithId, styled, t } from '@superset-ui/core';
+import { DataMaskStateWithId, styled, t, useTheme } from '@superset-ui/core';
 import Loading from 'src/components/Loading';
+import Button from 'src/components/Button';
+import Icons from 'src/components/Icons';
+import { Tooltip } from 'src/components/Tooltip';
 import { RootState } from 'src/dashboard/types';
 import { useChartLayoutItems } from 'src/dashboard/util/useChartLayoutItems';
 import { useChartIds } from 'src/dashboard/util/charts/useChartIds';
@@ -30,13 +33,18 @@ import { HorizontalBarProps } from './types';
 import FilterBarSettings from './FilterBarSettings';
 import crossFiltersSelector from './CrossFilters/selectors';
 
-const HorizontalBar = styled.div`
-  ${({ theme }) => `
+const COLLAPSED_HEIGHT = 52; // 收起时的高度，大约显示一行过滤器
+
+const HorizontalBar = styled.div<{ isCollapsed: boolean }>`
+  ${({ theme, isCollapsed }) => `
     padding: ${theme.gridUnit * 3}px ${theme.gridUnit * 2}px ${
       theme.gridUnit * 3
     }px ${theme.gridUnit * 4}px;
     background: ${theme.colors.grayscale.light5};
     box-shadow: inset 0px -2px 2px -1px ${theme.colors.grayscale.light2};
+    ${isCollapsed ? `max-height: ${COLLAPSED_HEIGHT}px;` : ''}
+    overflow: hidden;
+    transition: max-height 0.3s ease;
   `}
 `;
 
@@ -65,13 +73,22 @@ const FilterBarEmptyStateContainer = styled.div`
   `}
 `;
 
+const ToggleButton = styled(Button)`
+  padding: 0 ${8}px;
+  margin-left: auto;
+  flex-shrink: 0;
+`;
+
 const HorizontalFilterBar: FC<HorizontalBarProps> = ({
   actions,
   dataMaskSelected,
   filterValues,
+  filtersOpen = true,
   isInitialized,
   onSelectionChange,
+  toggleFiltersBar,
 }) => {
+  const theme = useTheme();
   const dataMask = useSelector<RootState, DataMaskStateWithId>(
     state => state.dataMask,
   );
@@ -91,9 +108,19 @@ const HorizontalFilterBar: FC<HorizontalBarProps> = ({
   );
 
   const hasFilters = filterValues.length > 0 || selectedCrossFilters.length > 0;
+  const isCollapsed = !filtersOpen && hasFilters;
+
+  const handleToggle = () => {
+    if (toggleFiltersBar) {
+      toggleFiltersBar(!filtersOpen);
+    }
+  };
 
   return (
-    <HorizontalBar {...getFilterBarTestId()}>
+    <HorizontalBar
+      {...getFilterBarTestId()}
+      isCollapsed={isCollapsed}
+    >
       <HorizontalBarContent>
         {!isInitialized ? (
           <Loading position="inline-centered" />
@@ -108,10 +135,37 @@ const HorizontalFilterBar: FC<HorizontalBarProps> = ({
             {hasFilters && (
               <FilterControls
                 dataMaskSelected={dataMaskSelected}
+                filtersOpen={filtersOpen}
                 onFilterSelectionChange={onSelectionChange}
               />
             )}
             {actions}
+            {hasFilters && toggleFiltersBar && (
+              <Tooltip
+                title={
+                  filtersOpen
+                    ? t('Collapse filters')
+                    : t('Expand filters')
+                }
+              >
+                <ToggleButton
+                  data-test="horizontal-filterbar-toggle"
+                  buttonStyle="link"
+                  buttonSize="xsmall"
+                  onClick={handleToggle}
+                >
+                  {filtersOpen ? (
+                    <Icons.CaretUp
+                      iconColor={theme.colors.grayscale.base}
+                    />
+                  ) : (
+                    <Icons.CaretDown
+                      iconColor={theme.colors.grayscale.base}
+                    />
+                  )}
+                </ToggleButton>
+              </Tooltip>
+            )}
           </>
         )}
       </HorizontalBarContent>
