@@ -125,3 +125,7 @@ docker/*local*
 test-report.html
 superset/static/stats/statistics.html
 .aider*
+
+# Local development files (do not commit)
+bksuperset5.tar
+superset/config.py
