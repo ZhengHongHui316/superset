@@ -109,3 +109,14 @@ Chart plugins register metadata, a React component, `buildQuery` function, `tran
 - **TypeScript/JS**: ESLint (airbnb + prettier config) + Prettier (single quotes, trailing commas). Config in `superset-frontend/.eslintrc.js` and `prettier.config.js`.
 - **Pre-commit hooks**: ruff, mypy, prettier, eslint — run `pre-commit install` to activate.
 - **Indentation**: 4 spaces for Python, 2 spaces for JS/TS/CSS/HTML/JSON.
+
+## 不提交到 Git 的文件
+
+以下文件属于本地环境或敏感配置，**不要提交到 Git 仓库**：
+
+| 文件 | 原因 |
+|------|------|
+| `bksuperset5.tar` | 本地备份包，体积大，不属于项目代码 |
+| `superset/config.py` | 本地开发配置，包含环境相关的数据库连接等信息 |
+
+如果这些文件被误提交到了历史中，推送前需要用 `git filter-branch` 或重建分支的方式清理。
