@@ -165,6 +165,8 @@ const FilterBar: FC<FiltersBarProps> = ({
 
   const dataMaskSelectedRef = useRef(dataMaskSelected);
   dataMaskSelectedRef.current = dataMaskSelected;
+  const dataMaskAppliedRef = useRef(dataMaskApplied);
+  dataMaskAppliedRef.current = dataMaskApplied;
   const handleFilterSelectionChange = useCallback(
     (
       filter: Pick<Filter, 'id'> & Partial<Filter>,
@@ -172,11 +174,16 @@ const FilterBar: FC<FiltersBarProps> = ({
     ) => {
       setDataMaskSelected(draft => {
         // force instant updating on initialization for filters with `requiredFirst` is true or instant filters
+        // 只有当 applied 也是 undefined（从未被应用过）时才自动生效
+        // 避免"清除所有"后再选值时绕过"应用"按钮直接生效
+        const appliedValue =
+          dataMaskAppliedRef.current[filter.id]?.filterState?.value;
         if (
           // filterState.value === undefined - means that value not initialized
           dataMask.filterState?.value !== undefined &&
           dataMaskSelectedRef.current[filter.id]?.filterState?.value ===
             undefined &&
+          appliedValue === undefined &&
           (filter.requiredFirst ||
             filter.filterType === 'filter_timerange' ||
             filter.filterType === 'filter_monthrange' ||
