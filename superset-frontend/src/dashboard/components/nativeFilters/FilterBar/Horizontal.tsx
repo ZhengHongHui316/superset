@@ -33,7 +33,7 @@ import { HorizontalBarProps } from './types';
 import FilterBarSettings from './FilterBarSettings';
 import crossFiltersSelector from './CrossFilters/selectors';
 
-const COLLAPSED_HEIGHT = 52; // 收起时的高度，大约显示一行过滤器
+const COLLAPSED_HEIGHT = 44; // 收起时的高度，只显示设置图标和展开按钮
 
 const HorizontalBar = styled.div<{ isCollapsed: boolean }>`
   ${({ theme, isCollapsed }) => `
@@ -109,6 +109,7 @@ const HorizontalFilterBar: FC<HorizontalBarProps> = ({
 
   const hasFilters = filterValues.length > 0 || selectedCrossFilters.length > 0;
   const isCollapsed = !filtersOpen && hasFilters;
+  const filterCount = filterValues.length;
 
   const handleToggle = () => {
     if (toggleFiltersBar) {
@@ -132,7 +133,8 @@ const HorizontalFilterBar: FC<HorizontalBarProps> = ({
                 {t('No filters are currently added to this dashboard.')}
               </FilterBarEmptyStateContainer>
             )}
-            {hasFilters && (
+            {/* 展开时才渲染过滤器 */}
+            {hasFilters && filtersOpen && (
               <FilterControls
                 dataMaskSelected={dataMaskSelected}
                 filtersOpen={filtersOpen}
@@ -145,7 +147,7 @@ const HorizontalFilterBar: FC<HorizontalBarProps> = ({
                 title={
                   filtersOpen
                     ? t('Collapse filters')
-                    : t('Expand filters')
+                    : t('Show filters (%s)', filterCount)
                 }
               >
                 <ToggleButton
@@ -155,13 +157,24 @@ const HorizontalFilterBar: FC<HorizontalBarProps> = ({
                   onClick={handleToggle}
                 >
                   {filtersOpen ? (
-                    <Icons.CaretUp
+                    <Icons.Collapse
                       iconColor={theme.colors.grayscale.base}
                     />
                   ) : (
-                    <Icons.CaretDown
-                      iconColor={theme.colors.grayscale.base}
-                    />
+                    <>
+                      <Icons.FilterSmall
+                        iconColor={theme.colors.grayscale.base}
+                        css={{ marginRight: 4 }}
+                      />
+                      <span
+                        css={(t) => ({
+                          color: t.colors.grayscale.base,
+                          fontSize: t.typography.sizes.m,
+                        })}
+                      >
+                        {filterCount}
+                      </span>
+                    </>
                   )}
                 </ToggleButton>
               </Tooltip>
