@@ -23,7 +23,6 @@ import {
   useCSSTextTruncation,
   truncationCSS,
 } from '@superset-ui/core';
-import Icons from 'src/components/Icons';
 import { Tooltip } from 'src/components/Tooltip';
 import { FilterBarOrientation } from 'src/dashboard/types';
 import { FilterDividerProps } from './types';
@@ -40,19 +39,15 @@ const HorizontalDivider = ({ title, description }: FilterDividerProps) => {
   const [titleRef, titleIsTruncated] =
     useCSSTextTruncation<HTMLHeadingElement>();
 
+  // flex-basis: 100% 让 divider 独占一整行，作为 flex 容器的直接子元素时
+  // 会正确解析为容器宽度，从而强制后面的过滤器换到下一行
   return (
     <div
       css={css`
-        display: flex;
-        align-items: center;
-        height: ${6 * theme.gridUnit}px;
-        border-left: 1px solid ${theme.colors.grayscale.light2};
-        padding-left: ${4 * theme.gridUnit}px;
-
-        .filter-item-wrapper:first-child & {
-          border-left: none;
-          padding-left: 0;
-        }
+        flex-basis: 100%;
+        border-bottom: 1px solid ${theme.colors.grayscale.light2};
+        padding-bottom: ${theme.gridUnit * 2}px;
+        margin-bottom: ${theme.gridUnit}px;
       `}
     >
       <Tooltip overlay={titleIsTruncated ? title : null}>
@@ -60,9 +55,8 @@ const HorizontalDivider = ({ title, description }: FilterDividerProps) => {
           ref={titleRef}
           css={css`
             ${truncationCSS};
-            max-width: ${theme.gridUnit * 32.5}px;
             font-size: ${theme.typography.sizes.m}px;
-            font-weight: ${theme.typography.weights.normal};
+            font-weight: ${theme.typography.weights.bold};
             margin: 0;
             color: ${theme.colors.grayscale.dark1};
           `}
@@ -71,18 +65,15 @@ const HorizontalDivider = ({ title, description }: FilterDividerProps) => {
         </h3>
       </Tooltip>
       {description ? (
-        <Tooltip overlay={description}>
-          <Icons.BookOutlined
-            data-test="divider-description-icon"
-            iconSize="l"
-            iconColor={theme.colors.grayscale.base}
-            css={css`
-              margin: 0 ${theme.gridUnit * 1.5}px;
-              vertical-align: unset;
-              line-height: unset;
-            `}
-          />
-        </Tooltip>
+        <p
+          css={css`
+            font-size: ${theme.typography.sizes.s}px;
+            color: ${theme.colors.grayscale.base};
+            margin: ${theme.gridUnit}px 0 0 0;
+          `}
+        >
+          {description}
+        </p>
       ) : null}
     </div>
   );

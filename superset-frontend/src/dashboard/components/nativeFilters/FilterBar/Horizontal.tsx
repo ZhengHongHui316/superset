@@ -44,7 +44,7 @@ const HorizontalBarContent = styled.div`
   ${({ theme }) => `
     display: flex;
     flex-direction: row;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: flex-start;
     line-height: 0;

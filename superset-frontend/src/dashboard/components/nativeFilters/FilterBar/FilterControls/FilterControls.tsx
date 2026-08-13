@@ -16,16 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  memo,
-  Fragment,
-  FC,
-  useEffect,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { memo, Fragment, FC, useCallback, useMemo } from 'react';
 import {
   DataMask,
   DataMaskStateWithId,
@@ -33,10 +24,9 @@ import {
   Divider,
   css,
   SupersetTheme,
-  t,
   isFeatureEnabled,
   FeatureFlag,
-  isNativeFilterWithDataMask,
+  isFilterDivider,
 } from '@superset-ui/core';
 import {
   createHtmlPortalNode,
@@ -49,15 +39,10 @@ import {
   useSelectFiltersInScope,
 } from 'src/dashboard/components/nativeFilters/state';
 import { FilterBarOrientation, RootState } from 'src/dashboard/types';
-import DropdownContainer, {
-  Ref as DropdownContainerRef,
-} from 'src/components/DropdownContainer';
-import Icons from 'src/components/Icons';
 import { useChartIds } from 'src/dashboard/util/charts/useChartIds';
 import { useChartLayoutItems } from 'src/dashboard/util/useChartLayoutItems';
 import { FiltersOutOfScopeCollapsible } from '../FiltersOutOfScopeCollapsible';
 import { useFilterControlFactory } from '../useFilterControlFactory';
-import { FiltersDropdownContent } from '../FiltersDropdownContent';
 import crossFiltersSelector from '../CrossFilters/selectors';
 import CrossFilter from '../CrossFilters/CrossFilter';
 import { useFilterOutlined } from '../useFilterOutlined';
@@ -79,10 +64,7 @@ const FilterControls: FC<FilterControlsProps> = ({
         : FilterBarOrientation.Vertical,
   );
 
-  const { outlinedFilterId, lastUpdated } = useFilterOutlined();
-
-  const [overflowedIds, setOverflowedIds] = useState<string[]>([]);
-  const popoverRef = useRef<DropdownContainerRef>(null);
+  useFilterOutlined();
 
   const dataMask = useSelector<RootState, DataMaskStateWithId>(
     state => state.dataMask,
@@ -127,13 +109,12 @@ const FilterControls: FC<FilterControlsProps> = ({
   const showCollapsePanel = dashboardHasTabs && filtersWithValues.length > 0;
 
   const renderer = useCallback(
-    ({ id }: Filter | Divider, index: number | undefined) => {
+    ({ id }: Filter | Divider, index: number) => {
       const filterIndex = filtersWithValues.findIndex(f => f.id === id);
-      const key = index ?? id;
       return (
         // Empty text node is to ensure there's always an element preceding
         // the OutPortal, otherwise react-reverse-portal crashes
-        <Fragment key={key}>
+        <Fragment key={index ?? id}>
           {'' /* eslint-disable-line react/jsx-curly-brace-presence */}
           <OutPortal node={portalNodes[filterIndex]} inView />
         </Fragment>
@@ -165,26 +146,6 @@ const FilterControls: FC<FilterControlsProps> = ({
     ],
   );
 
-  const overflowedFiltersInScope = useMemo(
-    () => filtersInScope.filter(({ id }) => overflowedIds?.includes(id)),
-    [filtersInScope, overflowedIds],
-  );
-
-  const overflowedCrossFilters = useMemo(
-    () =>
-      selectedCrossFilters.filter(({ emitterId, name }) =>
-        overflowedIds?.includes(`${name}${emitterId}`),
-      ),
-    [overflowedIds, selectedCrossFilters],
-  );
-
-  const activeOverflowedFiltersInScope = useMemo(() => {
-    const activeOverflowedFilters = overflowedFiltersInScope.filter(filter =>
-      isNativeFilterWithDataMask(filter),
-    );
-    return [...activeOverflowedFilters, ...overflowedCrossFilters];
-  }, [overflowedCrossFilters, overflowedFiltersInScope]);
-
   const rendererCrossFilter = useCallback(
     (crossFilter, orientation, last) => (
       <CrossFilter
@@ -200,131 +161,152 @@ const FilterControls: FC<FilterControlsProps> = ({
     [filtersInScope.length],
   );
 
-  const items = useMemo(() => {
-    const crossFilters = selectedCrossFilters.map(c => ({
-      // a combination of filter name and chart id to account
-      // for multiple cross filters from the same chart in the future
-      id: `${c.name}${c.emitterId}`,
-      element: rendererCrossFilter(
-        c,
-        FilterBarOrientation.Horizontal,
-        selectedCrossFilters.at(-1),
+  // 水平模式：按 Divider 将过滤器分成多个分组，每组独立一行 flex 容器
+  const horizontalGroups = useMemo(() => {
+    type Group = {
+      divider: Divider | null;
+      nativeFilterIndices: number[]; // indices into filtersInScope
+    };
+
+    const groups: Group[] = [];
+    let currentGroup: Group = { divider: null, nativeFilterIndices: [] };
+
+    filtersInScope.forEach((filter, index) => {
+      if (isFilterDivider(filter)) {
+        // 保存之前的分组
+        groups.push(currentGroup);
+        // 新建分组，divider 作为标题
+        currentGroup = { divider: filter, nativeFilterIndices: [] };
+      } else {
+        currentGroup.nativeFilterIndices.push(index);
+      }
+    });
+    groups.push(currentGroup);
+
+    return groups;
+  }, [filtersInScope]);
+
+  const crossFilterElements = useMemo(
+    () =>
+      selectedCrossFilters.map(c =>
+        rendererCrossFilter(
+          c,
+          FilterBarOrientation.Horizontal,
+          selectedCrossFilters.at(-1),
+        ),
       ),
-    }));
-    const nativeFiltersInScope = filtersInScope.map((filter, index) => ({
-      id: filter.id,
-      element: (
-        <div
-          className="filter-item-wrapper"
-          css={css`
-            flex-shrink: 0;
-          `}
-        >
-          {renderer(filter, index)}
-        </div>
-      ),
-    }));
-    return [...crossFilters, ...nativeFiltersInScope];
-  }, [filtersInScope, renderer, rendererCrossFilter, selectedCrossFilters]);
+    [selectedCrossFilters, rendererCrossFilter],
+  );
 
   const renderHorizontalContent = useCallback(
     () => (
       <div
         css={(theme: SupersetTheme) => css`
-          padding: 0 ${theme.gridUnit * 4}px;
+          display: flex;
+          flex-direction: column;
+          gap: ${theme.gridUnit * 2}px;
+          padding: ${theme.gridUnit}px ${theme.gridUnit * 4}px;
           min-width: 0;
           flex: 1;
         `}
       >
-        <DropdownContainer
-          items={items}
-          dropdownTriggerIcon={
-            <Icons.FilterSmall
-              css={css`
-                && {
-                  margin-right: -4px;
+        {/* Cross filters 放在第一行 */}
+        {crossFilterElements.length > 0 && (
+          <div
+            css={(theme: SupersetTheme) => css`
+              display: flex;
+              flex-wrap: wrap;
+              align-items: center;
+              gap: ${theme.gridUnit * 4}px;
+            `}
+          >
+            {crossFilterElements.map((el, i) => (
+              <div key={`cross-${i}`}>{el}</div>
+            ))}
+          </div>
+        )}
+
+        {/* 按 Divider 分组的 native filters */}
+        {horizontalGroups.map((group, groupIndex) => (
+          <div key={groupIndex}>
+            {group.divider && (
+              <div
+                css={(t: SupersetTheme) => css`
+                  border-bottom: 1px solid ${t.colors.grayscale.light2};
+                  padding-bottom: ${t.gridUnit * 2}px;
+                  margin-bottom: ${t.gridUnit * 2}px;
+                `}
+              >
+                <h3
+                  css={(t: SupersetTheme) => css`
+                    font-size: ${t.typography.sizes.m}px;
+                    font-weight: ${t.typography.weights.bold};
+                    margin: 0;
+                    color: ${t.colors.grayscale.dark1};
+                  `}
+                >
+                  {group.divider.title}
+                </h3>
+                {group.divider.description && (
+                  <p
+                    css={(t: SupersetTheme) => css`
+                      font-size: ${t.typography.sizes.s}px;
+                      color: ${t.colors.grayscale.base};
+                      margin: ${t.gridUnit}px 0 0 0;
+                    `}
+                  >
+                    {group.divider.description}
+                  </p>
+                )}
+              </div>
+            )}
+            {group.nativeFilterIndices.length > 0 && (
+              <div
+                css={(theme: SupersetTheme) => css`
                   display: flex;
-                }
-              `}
-            />
-          }
-          dropdownTriggerText={t('More filters')}
-          dropdownTriggerCount={activeOverflowedFiltersInScope.length}
-          dropdownTriggerTooltip={
-            activeOverflowedFiltersInScope.length === 0
-              ? t('No applied filters')
-              : t(
-                  'Applied filters: %s',
-                  activeOverflowedFiltersInScope
-                    .map(filter => filter.name)
-                    .join(', '),
-                )
-          }
-          dropdownContent={
-            overflowedFiltersInScope.length ||
-            overflowedCrossFilters.length ||
-            (filtersOutOfScope.length && showCollapsePanel)
-              ? () => (
-                  <FiltersDropdownContent
-                    overflowedCrossFilters={overflowedCrossFilters}
-                    filtersInScope={overflowedFiltersInScope}
-                    filtersOutOfScope={filtersOutOfScope}
-                    renderer={renderer}
-                    rendererCrossFilter={rendererCrossFilter}
-                    showCollapsePanel={showCollapsePanel}
-                    forceRenderOutOfScope={hasRequiredFirst}
-                  />
-                )
-              : undefined
-          }
-          forceRender={hasRequiredFirst}
-          ref={popoverRef}
-          onOverflowingStateChange={({ overflowed: nextOverflowedIds }) => {
-            if (
-              nextOverflowedIds.length !== overflowedIds.length ||
-              overflowedIds.reduce(
-                (a, b, i) => a || b !== nextOverflowedIds[i],
-                false,
-              )
-            ) {
-              setOverflowedIds(nextOverflowedIds);
-            }
-          }}
-        />
+                  flex-wrap: wrap;
+                  align-items: center;
+                  gap: ${theme.gridUnit * 4}px;
+                `}
+              >
+                {group.nativeFilterIndices.map(scopeIndex => {
+                  const filter = filtersInScope[scopeIndex];
+                  const filterIndex = filtersWithValues.findIndex(
+                    f => f.id === filter.id,
+                  );
+                  return (
+                    <div key={filter.id}>
+                      <OutPortal node={portalNodes[filterIndex]} inView />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {showCollapsePanel && (
+          <FiltersOutOfScopeCollapsible
+            filtersOutOfScope={filtersOutOfScope}
+            forceRender={hasRequiredFirst}
+            hasTopMargin={filtersInScope.length > 0}
+            renderer={renderer}
+          />
+        )}
       </div>
     ),
     [
-      items,
-      activeOverflowedFiltersInScope,
-      overflowedFiltersInScope,
-      overflowedCrossFilters,
+      crossFilterElements,
+      horizontalGroups,
+      filtersInScope,
+      filtersWithValues,
+      portalNodes,
       filtersOutOfScope,
       showCollapsePanel,
       renderer,
-      rendererCrossFilter,
       hasRequiredFirst,
-      overflowedIds,
     ],
   );
-
-  const overflowedByIndex = useMemo(() => {
-    const filtersOutOfScopeIds = new Set(filtersOutOfScope.map(({ id }) => id));
-    const overflowedFiltersInScopeIds = new Set(
-      overflowedFiltersInScope.map(({ id }) => id),
-    );
-
-    return filtersWithValues.map(
-      filter =>
-        filtersOutOfScopeIds.has(filter.id) ||
-        overflowedFiltersInScopeIds.has(filter.id),
-    );
-  }, [filtersOutOfScope, filtersWithValues, overflowedFiltersInScope]);
-
-  useEffect(() => {
-    if (outlinedFilterId && overflowedIds.includes(outlinedFilterId)) {
-      popoverRef?.current?.open();
-    }
-  }, [outlinedFilterId, lastUpdated, popoverRef, overflowedIds]);
 
   return (
     <>
@@ -332,11 +314,7 @@ const FilterControls: FC<FilterControlsProps> = ({
         .filter((node, index) => filterIds.has(filtersWithValues[index].id))
         .map((node, index) => (
           <InPortal node={node} key={filtersWithValues[index].id}>
-            {filterControlFactory(
-              index,
-              filterBarOrientation,
-              overflowedByIndex[index],
-            )}
+            {filterControlFactory(index, filterBarOrientation, false)}
           </InPortal>
         ))}
       {filterBarOrientation === FilterBarOrientation.Vertical &&
